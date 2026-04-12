@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lab-Guide — 의뢰자 포털</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface":     "#E7E5E4",
+          "surface-alt": "#EDEBEA",
+          "raised":      "#E7E5E4",
+          "primary":     "#006666",
+          "primary-dark":"#004d4d",
+          "accent":      "#c45e2c",
+          "ink":         "#1E2938",
+          "ink-soft":    "#57534e",
+          "ink-muted":   "#a8a29e",
+          "pass":        "#00A63D",
+          "pass-bg":     "#dcfce7",
+          "warn":        "#FE9900",
+          "warn-bg":     "#fef3c7",
+          "fail":        "#FF2157",
+          "fail-bg":     "#fee2e2",
+        },
+        fontFamily: {
+          "sans":  ["Inter", "Noto Sans KR", "Apple SD Gothic Neo", "sans-serif"],
+          "title": ["Space Mono", "JetBrains Mono", "monospace"],
+          "mono":  ["JetBrains Mono", "monospace"],
+        },
+        borderRadius: {"DEFAULT": "0.375rem", "lg": "10px", "xl": "14px", "2xl": "1rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { min-height: 100dvh; background: #E7E5E4; font-family: "Inter", "Noto Sans KR", sans-serif; color: #1E2938; -webkit-font-smoothing: antialiased; }
+  .font-data { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+  .font-title { font-family: "Space Mono", "JetBrains Mono", monospace; }
+  /* Neumorphism utilities */
+  .neu-raised { background: #E7E5E4;  border-radius: 14px; box-shadow: 6px 6px 12px #bebebe, -6px -6px 12px #ffffff; }
+  .neu-inset  { background: #E7E5E4;  border-radius: 10px; box-shadow: inset 4px 4px 8px #bebebe, inset -4px -4px 8px #ffffff; }
+  .neu-btn    { background: #E7E5E4;  border-radius: 14px; box-shadow: 4px 4px 8px #bebebe, -4px -4px 8px #ffffff; transition: all 0.15s ease; }
+    .neu-btn:hover {
+    box-shadow:
+      5px 5px 10px #bebebe,
+      -5px -5px 10px #ffffff;
+  }
+  .neu-btn:active { box-shadow: inset 3px 3px 6px #bebebe, inset -3px -3px 6px #ffffff; }
+  .neu-btn-primary { background: linear-gradient(135deg, #007a7a 0%, #005252 100%);  border-radius: 14px; box-shadow: 4px 4px 8px #bebebe, -4px -4px 8px #ffffff, inset 0 1px 0 rgba(255,255,255,0.15); color: white; transition: all 0.15s ease; }
+    .neu-btn-primary:hover {
+    box-shadow:
+      5px 5px 10px #bebebe,
+      -5px -5px 10px #ffffff;
+    background: linear-gradient(135deg, #008a8a 0%, #006060 100%);
+  }
+  .neu-btn-primary:active { box-shadow: inset 3px 3px 6px rgba(0,0,0,0.2), inset -3px -3px 6px rgba(255,255,255,0.05); }
+  /* Scrollbar */
+  .scroll-hide::-webkit-scrollbar { display: none; }
+  .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  @keyframes pulse-live { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .animate-live { animation: pulse-live 1.5s ease-in-out infinite; }
+  .card-tap { -webkit-tap-highlight-color: transparent; transition: all 0.15s ease; }
+  .card-tap:active { box-shadow: inset 3px 3px 6px #bebebe, inset -3px -3px 6px #ffffff !important; transform: scale(0.99); }
+  /* SPA sections */
+  .spa-section { display: none; }
+  .spa-section.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  /* Nav active */
+  .nav-tab.nav-active .nav-icon { color: #006666; }
+  .nav-tab.nav-active .nav-label { color: #006666; font-weight: 700; }
+  #tab-home .nav-icon { color: #fff !important; }
+  .nav-tab.nav-active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 24px; height: 3px;
+    background: #006666;
+    border-radius: 0 0 4px 4px;
+  }
+  /* Calendar */
+  .cal-today { background: #006666; color: #fff; border-radius: 9999px; }
+  .cal-booked { position: relative; }
+  .cal-booked::after { content:''; position:absolute; bottom:2px; left:50%; transform:translateX(-50%); width:5px; height:5px; border-radius:9999px; background:#006666; }
+  /* Filter chip */
+  .chip-active { background: #006666 !important; color: #fff !important; border-radius: 9999px; }
+  /* Modal */
+  @keyframes modal-bg-in { from{opacity:0} to{opacity:1} }
+  @keyframes modal-panel-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .modal-bg-in { animation: modal-bg-in 0.2s ease-out both; }
+  .modal-panel-in { animation: modal-panel-in 0.25s ease-out both; }
+
+  /* P0: Respect reduced-motion preference (WCAG / ui-ux-pro-max critical) */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* P1: Tabular numerals for aligned data columns */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="bg-surface flex justify-center">
+<div class="w-full max-w-[768px] flex flex-col bg-surface" style="height:100dvh">
+
+  <!-- ══ Fixed Header ══ -->
+  <header id="master-header" class="shrink-0 flex items-center justify-between px-4 py-3.5 z-10">
+    <button onclick="navigate('home')" class="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-lg" aria-label="홈으로 이동">
+      <span class="material-symbols-outlined text-primary text-[28px]">science</span>
+      <div>
+        <p class="text-[10px] text-ink-muted font-semibold uppercase tracking-[0.12em] leading-none font-data">Lab-Guide</p>
+        <p class="text-[18px] font-bold text-ink leading-tight" id="header-title">의뢰자 포털</p>
+      </div>
+    </button>
+    <div class="flex items-center gap-2">
+      <button class="neu-btn relative flex items-center justify-center w-10 h-10 text-ink-soft hover:text-ink transition-colors" aria-label="알림">
+        <span class="material-symbols-outlined text-xl">notifications</span>
+        <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent border-2 border-surface"></span>
+      </button>
+      <button class="neu-btn flex items-center justify-center w-10 h-10 text-ink-soft hover:text-ink transition-colors" aria-label="설정">
+        <span class="material-symbols-outlined text-xl">settings</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══ Scrollable Content Area (SPA sections) ══ -->
+  <div class="flex-1 overflow-y-auto scroll-hide min-h-0 flex flex-col" id="content-area" aria-live="polite">
+
+    <!-- ── Section: 홈 (Home) ── -->
+    <div id="section-home" class="spa-section active">
+
+      <!-- User profile card -->
+      <div class="shrink-0 px-4 pt-3 pb-0">
+        <div class="neu-raised flex items-center gap-3 p-3">
+          <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+               alt="김철수 연구원 프로필 사진"
+               class="w-12 h-12 rounded-full object-cover border-2 border-white/50 shrink-0" style="box-shadow: 2px 2px 5px #bebebe, -2px -2px 5px #ffffff;"/>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-ink text-base leading-tight truncate">김철수 연구원</p>
+            <p class="text-ink-soft text-sm truncate">의뢰자 · QC부서 2팀</p>
+          </div>
+          <a href="manufacturer_home.html" class="neu-btn flex items-center justify-center shrink-0 px-3 py-1.5 text-sm font-semibold text-primary hover:text-primary-dark transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 no-underline">
+            Switch
+          </a>
+        </div>
+      </div>
+
+      <!-- Recent experiments header -->
+      <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+        <h2 class="text-[15px] font-bold text-ink">최근 실험 내역</h2>
+        <button class="flex items-center gap-0.5 text-primary text-sm font-medium hover:opacity-80 transition-opacity">
+          전체 보기
+          <span class="material-symbols-outlined text-[17px]">chevron_right</span>
+        </button>
+      </div>
+
+      <!-- Scrollable experiment list -->
+      <div class="flex-1 overflow-y-auto scroll-hide px-4 pb-3 flex flex-col gap-3 min-h-0">
+
+        <!-- Card 1: 진행 중 -->
+        <a onclick="navigate('progress'); return false;" href="#"
+           class="card-tap neu-raised flex flex-col gap-2 p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all no-underline relative overflow-hidden" style="border-left: 3px solid #006666;"
+           aria-label="10x PBS Buffer 진행 상황 상세 보기">
+          <div class="absolute top-0 right-0 bg-accent text-white text-[10px] font-bold px-2.5 py-1 rounded-bl-xl tracking-wider uppercase">긴급</div>
+          <div class="flex items-center gap-3">
+            <div class="neu-btn-primary flex items-center justify-center w-11 h-11 shrink-0" style="border-radius:10px;">
+              <span class="material-symbols-outlined text-xl">experiment</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-ink text-base leading-tight truncate">10x PBS Buffer</p>
+              <p class="text-ink-soft text-sm mt-0.5 truncate font-data">B-1042 · 작업자: 이민준</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0 bg-green-100 text-green-700 rounded-full px-2.5 py-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-live shrink-0"></span>
+              <span class="text-xs font-bold tracking-wide">진행 중</span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 mt-1">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-ink-soft font-data">Step 6 / 9</span>
+              <span class="text-xs font-bold text-primary font-data">67%</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden neu-inset" style="border-radius:9999px;">
+              <div class="h-full rounded-full bg-primary" style="width:67%"></div>
+            </div>
+          </div>
+          <div class="flex gap-5 pt-2 mt-1">
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">용량</span><span class="text-sm font-semibold text-slate-800">5 L</span></div>
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">예상 완료</span><span class="text-sm font-semibold text-slate-800">약 18분</span></div>
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">이슈</span><span class="text-sm font-bold text-red-500">2건</span></div>
+          </div>
+        </a>
+
+        <!-- Card 2: 완료 -->
+        <div class="card-tap flex flex-col gap-2 rounded-xl neu-raised p-4 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all" tabindex="0">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-11 h-11 rounded-lg bg-primary/15 text-primary shrink-0">
+              <span class="material-symbols-outlined text-xl">experiment</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-slate-900 text-base leading-tight truncate">TAE Buffer</p>
+              <p class="text-ink-soft text-sm mt-0.5 truncate">T-0891 · 작업자: 박수진</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0 neu-inset text-ink-muted rounded-full px-2.5 py-1">
+              <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1">check_circle</span>
+              <span class="text-xs font-bold">완료</span>
+            </div>
+          </div>
+          <div class="flex gap-5 pt-2 mt-1">
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">용량</span><span class="text-sm font-semibold text-slate-800">2 L</span></div>
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">완료 시각</span><span class="text-sm font-semibold text-slate-800">오늘 09:41</span></div>
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">이슈</span><span class="text-sm font-semibold text-ink-muted">없음</span></div>
+          </div>
+        </div>
+
+        <!-- Card 3: 대기 중 -->
+        <div class="card-tap flex flex-col gap-2 rounded-xl neu-raised p-4 cursor-pointer hover:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/40 transition-all" tabindex="0">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-11 h-11 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+              <span class="material-symbols-outlined text-xl">schedule</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-slate-900 text-base leading-tight truncate">Tris-HCl (pH 8.0)</p>
+              <p class="text-ink-soft text-sm mt-0.5 truncate">TH-2204 · 예정: 오후 2:00</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 bg-amber-100 text-amber-700 rounded-full px-2.5 py-1">
+              <span class="text-xs font-bold">대기 중</span>
+            </div>
+          </div>
+          <div class="flex gap-5 pt-2 mt-1">
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">용량</span><span class="text-sm font-semibold text-slate-800">1 L</span></div>
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">예상 소요</span><span class="text-sm font-semibold text-slate-800">20분</span></div>
+          </div>
+        </div>
+
+        <!-- Card 4: 완료 (older) -->
+        <div class="card-tap flex flex-col gap-2 rounded-xl neu-inset p-4 cursor-pointer opacity-60 hover:opacity-80 focus:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-opacity" tabindex="0">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-11 h-11 rounded-lg neu-inset text-ink-muted shrink-0">
+              <span class="material-symbols-outlined text-xl">experiment</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-bold text-ink-soft text-base leading-tight truncate">HEPES Buffer</p>
+              <p class="text-ink-muted text-sm mt-0.5 truncate">H-0312 · 작업자: 김도현</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0 neu-inset text-ink-muted rounded-full px-2.5 py-1">
+              <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1">check_circle</span>
+              <span class="text-xs font-bold">완료</span>
+            </div>
+          </div>
+          <div class="flex gap-5 pt-2 mt-1">
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">용량</span><span class="text-sm font-semibold text-ink-soft">500 mL</span></div>
+            <div class="flex flex-col gap-0.5"><span class="text-[11px] text-ink-muted">완료 시각</span><span class="text-sm font-semibold text-ink-soft">어제 16:12</span></div>
+          </div>
+        </div>
+
+      </div><!-- end experiment list -->
+
+      <!-- Summary cards: 진행상황 | 이슈관리 -->
+      <div class="shrink-0 grid grid-cols-2 gap-3 px-4 pb-3">
+        <a onclick="navigate('progress'); return false;" href="#"
+           class="card-tap flex flex-col gap-2 rounded-xl neu-inset p-4 hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all no-underline"
+           aria-label="진행상황 상세 보기">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/15 text-primary shrink-0">
+              <span class="material-symbols-outlined text-xl">trending_up</span>
+            </div>
+            <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+          </div>
+          <div>
+            <p class="text-[11px] text-ink-muted font-medium uppercase tracking-wide">진행상황</p>
+            <p class="text-xl font-bold text-slate-900 leading-snug">1건</p>
+            <p class="text-xs text-primary font-medium">현재 진행 중</p>
+          </div>
+          <div class="h-1.5 rounded-full bg-surface overflow-hidden">
+            <div class="h-full rounded-full bg-primary" style="width:67%"></div>
+          </div>
+        </a>
+        <a href="client_issues.html"
+           class="card-tap flex flex-col gap-2 rounded-xl neu-inset p-4 hover:border-red-300 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 focus:border-red-300 transition-all no-underline"
+           aria-label="이슈관리 보기">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-red-100 text-red-500 shrink-0">
+              <span class="material-symbols-outlined text-xl">warning</span>
+            </div>
+            <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+          </div>
+          <div>
+            <p class="text-[11px] text-ink-muted font-medium uppercase tracking-wide">이슈관리</p>
+            <p class="text-xl font-bold text-slate-900 leading-snug">2건</p>
+            <p class="text-xs text-red-500 font-medium">승인 대기 중</p>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+            <span class="text-[11px] text-ink-soft">HIGH 1건 · MED 1건</span>
+          </div>
+        </a>
+      </div>
+
+    </div><!-- end section-home -->
+
+
+    <!-- ── Section: 스케줄 예약 ── -->
+    <div id="section-schedule" class="spa-section">
+
+      <!-- Calendar section -->
+      <div class="shrink-0 px-4 pt-4 pb-3">
+        <div class="flex items-center justify-between mb-4">
+          <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-surface-alt text-ink-soft transition-colors" aria-label="이전 달">
+            <span class="material-symbols-outlined text-xl">chevron_left</span>
+          </button>
+          <h3 class="text-base font-bold text-slate-900">2026년 3월</h3>
+          <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-surface-alt text-ink-soft transition-colors" aria-label="다음 달">
+            <span class="material-symbols-outlined text-xl">chevron_right</span>
+          </button>
+        </div>
+        <div class="grid grid-cols-7 mb-1">
+          <div class="text-center text-[11px] font-bold text-red-400 py-1">일</div>
+          <div class="text-center text-[11px] font-bold text-ink-muted py-1">월</div>
+          <div class="text-center text-[11px] font-bold text-ink-muted py-1">화</div>
+          <div class="text-center text-[11px] font-bold text-ink-muted py-1">수</div>
+          <div class="text-center text-[11px] font-bold text-ink-muted py-1">목</div>
+          <div class="text-center text-[11px] font-bold text-ink-muted py-1">금</div>
+          <div class="text-center text-[11px] font-bold text-blue-400 py-1">토</div>
+        </div>
+        <div class="grid grid-cols-7 gap-y-1">
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-red-400 font-medium rounded-full hover:bg-red-50 active:bg-red-100 transition-colors">1</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt active:bg-surface transition-colors cal-booked">2</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt active:bg-surface transition-colors">3</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt active:bg-surface transition-colors cal-booked">4</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt active:bg-surface transition-colors">5</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt active:bg-surface transition-colors">6</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-blue-400 font-medium rounded-full hover:bg-blue-50 active:bg-blue-100 transition-colors">7</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-red-400 font-medium rounded-full hover:bg-red-50 transition-colors">8</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">9</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors cal-booked">10</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">11</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">12</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">13</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-blue-400 font-medium rounded-full hover:bg-blue-50 transition-colors">14</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-red-400 font-medium rounded-full hover:bg-red-50 transition-colors">15</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">16</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">17</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">18</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">19</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">20</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-blue-400 font-medium rounded-full hover:bg-blue-50 transition-colors">21</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-red-400 font-medium rounded-full hover:bg-red-50 transition-colors">22</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">23</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">24</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">25</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">26</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors">27</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-blue-400 font-medium rounded-full hover:bg-blue-50 transition-colors">28</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-red-400 font-medium rounded-full hover:bg-red-50 transition-colors">29</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm font-bold cal-today focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">30</button>
+          <button class="flex items-center justify-center w-10 h-10 mx-auto text-sm text-ink font-medium rounded-full hover:bg-surface-alt transition-colors cal-booked">31</button>
+          <div></div><div></div><div></div><div></div>
+        </div>
+        <div class="flex items-center gap-4 mt-3 pt-3">
+          <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-primary shrink-0"></span><span class="text-[11px] text-ink-soft">오늘</span></div>
+          <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span><span class="text-[11px] text-ink-soft">예약 있음</span></div>
+        </div>
+      </div>
+
+      <!-- Scrollable reservations -->
+      <div class="flex-1 overflow-y-auto scroll-hide min-h-0">
+        <div class="px-4 pt-4 pb-2">
+          <div class="flex items-center justify-between">
+            <p class="text-[11px] text-ink-muted font-bold uppercase tracking-wider flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm">event</span>예약된 실험
+            </p>
+            <button onclick="openNewRequest()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 active:bg-primary/80 transition-colors">
+              <span class="material-symbols-outlined text-sm">add</span>예약 추가
+            </button>
+          </div>
+        </div>
+        <div class="flex flex-col gap-3 px-4 pb-6">
+          <div class="rounded-xl neu-raised p-4 focus-within:shadow-md transition-shadow cursor-pointer">
+            <div class="flex items-center gap-1.5 mb-2">
+              <span class="text-[10px] font-bold text-white bg-primary rounded px-2 py-0.5 uppercase tracking-wider">오늘</span>
+              <span class="text-[11px] text-ink-muted">3월 30일 (월) · 오전 10:00</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-white shrink-0"><span class="material-symbols-outlined text-lg">experiment</span></div>
+              <div class="flex-1 min-w-0"><p class="font-bold text-slate-900 text-sm leading-tight truncate">10x PBS Buffer</p><p class="text-xs text-ink-soft mt-0.5">B-1042 · 라인 A · 전자저울, 피펫</p></div>
+              <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+            </div>
+          </div>
+          <div class="rounded-xl neu-raised p-4 focus-within:border-primary/40 transition-colors cursor-pointer">
+            <div class="flex items-center gap-1.5 mb-2">
+              <span class="text-[10px] font-bold text-primary bg-primary/15 rounded px-2 py-0.5 uppercase tracking-wider">내일</span>
+              <span class="text-[11px] text-ink-muted">3월 31일 (화) · 오후 1:00</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/15 text-primary shrink-0"><span class="material-symbols-outlined text-lg">experiment</span></div>
+              <div class="flex-1 min-w-0"><p class="font-bold text-slate-900 text-sm leading-tight truncate">Tris-HCl (pH 8.0)</p><p class="text-xs text-ink-soft mt-0.5">TH-2204 · 라인 B · pH 미터, 교반기</p></div>
+              <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+            </div>
+          </div>
+          <div class="rounded-xl neu-raised p-4 transition-colors cursor-pointer">
+            <div class="flex items-center gap-1.5 mb-2"><span class="text-[11px] text-ink-muted">4월 2일 (목) · 오전 9:00</span></div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/15 text-primary shrink-0"><span class="material-symbols-outlined text-lg">experiment</span></div>
+              <div class="flex-1 min-w-0"><p class="font-bold text-slate-900 text-sm leading-tight truncate">HEPES Buffer</p><p class="text-xs text-ink-soft mt-0.5">H-0312 · 라인 A · 전자저울</p></div>
+              <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- end section-schedule -->
+
+
+    <!-- ── Section: 데이터 센터 ── -->
+    <div id="section-data" class="spa-section">
+
+      <!-- Search & filter bar -->
+      <div class="shrink-0 px-4 pt-3 pb-2">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 flex items-center gap-2 rounded-xl neu-inset px-3 py-2.5 focus-within:border-primary/50 transition-colors">
+            <span class="material-symbols-outlined text-ink-muted text-xl shrink-0">search</span>
+            <input type="text" placeholder="실험 번호 또는 이름 검색..." class="flex-1 bg-transparent text-sm text-slate-900 placeholder-ink-muted outline-none border-none focus:ring-0 p-0"/>
+          </div>
+          <button class="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-ink-soft hover:bg-surface-alt active:border-primary/60 transition-colors shrink-0" aria-label="필터">
+            <span class="material-symbols-outlined text-lg">filter_list</span>
+            <span class="text-sm font-medium">필터</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-2 mt-2 overflow-x-auto scroll-hide pb-1">
+          <button onclick="setChip(this)" class="chip-active shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">전체</button>
+          <button onclick="setChip(this)" class="shrink-0 px-3 py-1.5 rounded-full neu-inset text-ink-muted text-xs font-medium hover:bg-surface-alt transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">완료</button>
+          <button onclick="setChip(this)" class="shrink-0 px-3 py-1.5 rounded-full neu-inset text-ink-muted text-xs font-medium hover:bg-surface-alt transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">이슈 있음</button>
+          <button onclick="setChip(this)" class="shrink-0 px-3 py-1.5 rounded-full neu-inset text-ink-muted text-xs font-medium hover:bg-surface-alt transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">이번 달</button>
+          <button onclick="setChip(this)" class="shrink-0 px-3 py-1.5 rounded-full neu-inset text-ink-muted text-xs font-medium hover:bg-surface-alt transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">서명 완료</button>
+        </div>
+      </div>
+
+      <!-- Records list (scrollable) -->
+      <div class="flex-1 overflow-y-auto scroll-hide px-4 pb-6 min-h-0">
+        <p class="text-[11px] text-ink-muted font-bold uppercase tracking-wider pt-4 pb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">description</span>완료된 실험 기록
+        </p>
+        <div class="flex flex-col gap-3">
+          <a href="client_results.html" class="flex flex-col gap-2 rounded-xl neu-raised p-4 focus:outline-none transition-all no-underline cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-green-100 text-green-600 shrink-0">
+                  <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">verified</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-bold text-sm text-slate-900 leading-tight truncate">TAE Buffer — T-0891</p>
+                  <p class="text-xs text-ink-soft mt-0.5">작업자: 박수진 · 완료: 오늘 09:41</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-bold text-green-600 bg-green-100 rounded px-2 py-0.5">서명 완료</span>
+                <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+              <span class="text-xs text-ink-muted">용량: <strong class="text-ink-soft">2 L</strong></span>
+              <span class="text-slate-200">·</span>
+              <span class="text-xs text-ink-muted">소요: <strong class="text-ink-soft">28분</strong></span>
+              <span class="text-slate-200">·</span>
+              <span class="text-xs text-ink-muted">이슈: <strong class="text-ink-soft">없음</strong></span>
+              <span class="flex-1"></span>
+              <span class="material-symbols-outlined text-ink-muted text-lg">download</span>
+            </div>
+          </a>
+          <a href="client_results.html" class="flex flex-col gap-2 rounded-xl neu-raised p-4 focus:outline-none transition-all no-underline cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-green-100 text-green-600 shrink-0">
+                  <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">verified</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-bold text-sm text-slate-900 leading-tight truncate">HEPES Buffer — H-0312</p>
+                  <p class="text-xs text-ink-soft mt-0.5">작업자: 김도현 · 완료: 어제 16:12</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-bold text-green-600 bg-green-100 rounded px-2 py-0.5">서명 완료</span>
+                <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+              <span class="text-xs text-ink-muted">용량: <strong class="text-ink-soft">500 mL</strong></span>
+              <span class="text-slate-200">·</span>
+              <span class="text-xs text-ink-muted">소요: <strong class="text-ink-soft">18분</strong></span>
+              <span class="text-slate-200">·</span>
+              <span class="text-xs text-ink-muted">이슈: <strong class="text-ink-soft">없음</strong></span>
+              <span class="flex-1"></span>
+              <span class="material-symbols-outlined text-ink-muted text-lg">download</span>
+            </div>
+          </a>
+          <a href="client_results.html" class="flex flex-col gap-2 rounded-xl neu-raised p-4 hover:border-amber-400/50 focus:border-amber-400/50 focus:outline-none transition-all no-underline cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+                  <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">verified</span>
+                </div>
+                <div class="min-w-0">
+                  <p class="font-bold text-sm text-slate-900 leading-tight truncate">Tris-HCl Buffer — TH-2103</p>
+                  <p class="text-xs text-ink-soft mt-0.5">작업자: 이민준 · 완료: 3/27 14:20</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[10px] font-bold text-amber-600 bg-amber-100 rounded px-2 py-0.5">이슈 1건</span>
+                <span class="material-symbols-outlined text-ink-muted text-lg">chevron_right</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+              <span class="text-xs text-ink-muted">용량: <strong class="text-ink-soft">1 L</strong></span>
+              <span class="text-slate-200">·</span>
+              <span class="text-xs text-ink-muted">소요: <strong class="text-ink-soft">35분</strong></span>
+              <span class="text-slate-200">·</span>
+              <span class="text-xs text-amber-500">편차: pH 초과</span>
+              <span class="flex-1"></span>
+              <span class="material-symbols-outlined text-ink-muted text-lg">download</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div><!-- end section-data -->
+
+
+    <!-- ── Section: progress ── -->
+    <div id="section-progress" class="spa-section">
+<!-- ── Header ── -->
+  <header class="shrink-0 flex items-center px-3 py-3 gap-3 bg-surface">
+    <a onclick="navigate('home'); return false;" href="#" class="flex items-center justify-center w-11 h-11 rounded-full hover:neu-inset text-ink-muted transition-colors shrink-0" aria-label="홈으로 돌아가기">
+      <span class="material-symbols-outlined text-2xl">arrow_back</span>
+    </a>
+    <div class="flex-1 min-w-0">
+      <p class="text-[11px] text-ink-muted font-medium uppercase tracking-widest leading-none">Protocol B-1042</p>
+      <p class="text-lg font-bold text-slate-900 leading-tight truncate">10x PBS Buffer</p>
+    </div>
+    <!-- LIVE badge -->
+    <div class="flex items-center gap-1.5 shrink-0 bg-green-100 text-green-700 rounded-full px-3 py-1.5">
+      <span class="w-2 h-2 rounded-full bg-green-500 animate-live shrink-0"></span>
+      <span class="text-xs font-bold tracking-wider">LIVE</span>
+    </div>
+  </header>
+
+  <!-- ── Progress bar section ── -->
+  <div class="shrink-0 px-4 pt-4 pb-3">
+    <div class="flex justify-between items-center mb-2">
+      <span class="text-sm font-semibold text-ink">Step <span class="text-primary">6</span> / 9</span>
+      <span class="text-sm font-bold text-primary">67%</span>
+    </div>
+    <div class="h-3 rounded-full bg-surface overflow-hidden">
+      <div class="h-full rounded-full bg-primary transition-all duration-700" style="width:67%"></div>
+    </div>
+    <!-- Step indicators -->
+    <div class="flex justify-between mt-2 px-0.5">
+      <span class="text-[11px] text-ink-muted">시작</span>
+      <span class="text-[11px] text-ink-muted">완료</span>
+    </div>
+  </div>
+
+  <!-- ── Meta info row ── -->
+  <div class="shrink-0 flex gap-4 px-4 py-3 neu-inset">
+    <div class="flex flex-col gap-0.5">
+      <span class="text-[11px] text-ink-muted uppercase tracking-wide">작업자</span>
+      <span class="text-sm font-semibold text-slate-800">이민준</span>
+    </div>
+    <div class="w-px bg-surface self-stretch"></div>
+    <div class="flex flex-col gap-0.5">
+      <span class="text-[11px] text-ink-muted uppercase tracking-wide">시작 시각</span>
+      <span class="text-sm font-semibold text-slate-800">10:15 AM</span>
+    </div>
+    <div class="w-px bg-surface self-stretch"></div>
+    <div class="flex flex-col gap-0.5">
+      <span class="text-[11px] text-ink-muted uppercase tracking-wide">예상 완료</span>
+      <span class="text-sm font-semibold text-primary">약 18분</span>
+    </div>
+    <div class="w-px bg-surface self-stretch"></div>
+    <div class="flex flex-col gap-0.5">
+      <span class="text-[11px] text-ink-muted uppercase tracking-wide">용량</span>
+      <span class="text-sm font-semibold text-slate-800">5 L</span>
+    </div>
+  </div>
+
+  <!-- ── Current step highlight ── -->
+  <div class="shrink-0 mx-4 mt-4 mb-3 rounded-xl bg-primary/5 p-4 fade-in">
+    <div class="flex items-start gap-3">
+      <div class="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white shrink-0">
+        <span class="material-symbols-outlined text-xl">play_arrow</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-[11px] text-primary font-bold uppercase tracking-wider mb-0.5">현재 진행 단계</p>
+        <p class="text-base font-bold text-slate-900 leading-snug">증류수 900 mL 투입</p>
+        <p class="text-sm text-ink-soft mt-1">비커에 증류수를 천천히 계량하여 투입합니다. 거품 발생 최소화.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 mt-3 pt-3 border-t border-primary/20">
+      <span class="material-symbols-outlined text-amber-500 text-base">schedule</span>
+      <span class="text-sm text-ink-soft font-medium">이 단계 시작: <strong class="text-slate-800">오전 10:49</strong></span>
+    </div>
+  </div>
+
+  <!-- ── Steps timeline (scrollable) ── -->
+  <div class="flex-1 overflow-y-auto scroll-hide px-4 pb-4 min-h-0">
+
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">전체 단계 현황</p>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-[10px] text-slate-500 font-medium">HIGH</span></div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-[10px] text-slate-500 font-medium">MED</span></div>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2.5">
+
+      <!-- Step 1: 완료 (정상) -->
+      <div class="flex items-stretch gap-3 bg-white rounded-xl border border-slate-200 p-3.5 transition-all hover:shadow-sm">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 text-primary shrink-0 font-bold text-sm">
+          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-semibold text-slate-500 line-through leading-tight">1. 장비 점검 및 초기화</p>
+          <p class="text-xs text-slate-400 mt-0.5">완료 · 10:15 AM</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="text-[10px] font-bold text-primary/60 bg-primary/8 rounded-full px-2.5 py-1">완료</span>
+        </div>
+      </div>
+
+      <!-- Step 2: 완료 + 이슈 HIGH -->
+      <div class="flex items-stretch gap-3 bg-white rounded-xl border border-red-200 border-l-4 border-l-red-500 p-3.5 transition-all hover:shadow-sm relative">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-red-100 text-red-600 shrink-0">
+          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-semibold text-slate-500 line-through leading-tight">2. NaCl 80 g 계량</p>
+          <p class="text-xs text-slate-400 mt-0.5">완료 · 10:22 AM — LOT: LOT-250831 (대체)</p>
+        </div>
+        <div class="flex flex-col items-end justify-center gap-1 shrink-0">
+          <span class="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 rounded-full px-2.5 py-1">
+            <span class="material-symbols-outlined text-xs">warning</span>HIGH
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 3: 완료 (정상) -->
+      <div class="flex items-stretch gap-3 bg-white rounded-xl border border-slate-200 p-3.5 transition-all hover:shadow-sm">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 text-primary shrink-0">
+          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-semibold text-slate-500 line-through leading-tight">3. KCl 2 g 계량</p>
+          <p class="text-xs text-slate-400 mt-0.5">완료 · 10:28 AM — LOT: KCL-2024-11</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="text-[10px] font-bold text-primary/60 bg-primary/8 rounded-full px-2.5 py-1">완료</span>
+        </div>
+      </div>
+
+      <!-- Step 4: 완료 (정상) -->
+      <div class="flex items-stretch gap-3 bg-white rounded-xl border border-slate-200 p-3.5 transition-all hover:shadow-sm">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10 text-primary shrink-0">
+          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-semibold text-slate-500 line-through leading-tight">4. Na₂HPO₄ 14.4 g 계량</p>
+          <p class="text-xs text-slate-400 mt-0.5">완료 · 10:35 AM — LOT: NAHP-2025-03</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="text-[10px] font-bold text-primary/60 bg-primary/8 rounded-full px-2.5 py-1">완료</span>
+        </div>
+      </div>
+
+      <!-- Step 5: 완료 + 이슈 MED -->
+      <div class="flex items-stretch gap-3 bg-white rounded-xl border border-amber-200 border-l-4 border-l-amber-400 p-3.5 transition-all hover:shadow-sm relative">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+          <span class="material-symbols-outlined text-lg" style="font-variation-settings:'FILL' 1">check_circle</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-semibold text-slate-500 line-through leading-tight">5. KH₂PO₄ 2.4 g 계량</p>
+          <p class="text-xs text-slate-400 mt-0.5">완료 · 10:43 AM — pH 편차 발생</p>
+        </div>
+        <div class="flex flex-col items-end justify-center gap-1 shrink-0">
+          <span class="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 rounded-full px-2.5 py-1">
+            <span class="material-symbols-outlined text-xs">warning</span>MED
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 6: 현재 진행 중 -->
+      <div class="flex items-stretch gap-3 bg-primary/5 rounded-xl border-2 border-primary p-3.5 shadow-sm shadow-primary/10 transition-all">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-white shrink-0 animate-pulse">
+          <span class="material-symbols-outlined text-lg">play_arrow</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-bold text-primary leading-tight">6. 증류수 900 mL 투입</p>
+          <p class="text-xs text-primary/70 mt-0.5">진행 중 · 10:49 AM~</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 rounded-full px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>LIVE
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 7: 예정 -->
+      <div class="flex items-stretch gap-3 bg-slate-50 rounded-xl border border-slate-100 p-3.5 opacity-60 transition-all">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg border-2 border-slate-200 text-slate-300 shrink-0">
+          <span class="text-sm font-bold">7</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-medium text-slate-400 leading-tight">pH 조정 (목표: 7.4 ± 0.1)</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="text-[10px] font-medium text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">대기</span>
+        </div>
+      </div>
+
+      <!-- Step 8: 예정 -->
+      <div class="flex items-stretch gap-3 bg-slate-50 rounded-xl border border-slate-100 p-3.5 opacity-60 transition-all">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg border-2 border-slate-200 text-slate-300 shrink-0">
+          <span class="text-sm font-bold">8</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-medium text-slate-400 leading-tight">최종 부피 5 L 완성</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="text-[10px] font-medium text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">대기</span>
+        </div>
+      </div>
+
+      <!-- Step 9: 예정 -->
+      <div class="flex items-stretch gap-3 bg-slate-50 rounded-xl border border-slate-100 p-3.5 opacity-60 transition-all">
+        <div class="flex items-center justify-center w-9 h-9 rounded-lg border-2 border-slate-200 text-slate-300 shrink-0">
+          <span class="text-sm font-bold">9</span>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <p class="text-sm font-medium text-slate-400 leading-tight">전자 서명 및 기록 저장</p>
+        </div>
+        <div class="flex items-center shrink-0">
+          <span class="text-[10px] font-medium text-slate-400 bg-slate-100 rounded-full px-2.5 py-1">대기</span>
+        </div>
+      </div>
+
+    </div><!-- end steps -->
+
+    <!-- Reagents used section -->
+    <div class="mt-5 pt-4">
+      <p class="text-[11px] text-ink-muted font-bold uppercase tracking-wider mb-3">투입 시약 목록 (자동 기록)</p>
+      <div class="flex flex-col gap-2">
+
+        <div class="flex items-center gap-3 rounded-lg neu-inset px-3 py-2.5">
+          <span class="material-symbols-outlined text-ink-muted text-xl">science</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-slate-800 truncate">NaCl (염화나트륨)</p>
+            <p class="text-xs text-ink-muted truncate">LOT: LOT-250831 · 유효: 2025.08.31</p>
+          </div>
+          <span class="text-sm font-bold text-ink shrink-0">80 g</span>
+        </div>
+
+        <div class="flex items-center gap-3 rounded-lg neu-inset px-3 py-2.5">
+          <span class="material-symbols-outlined text-ink-muted text-xl">science</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-slate-800 truncate">KCl (염화칼륨)</p>
+            <p class="text-xs text-ink-muted truncate">LOT: KCL-2024-11 · 유효: 2024.11.30</p>
+          </div>
+          <span class="text-sm font-bold text-ink shrink-0">2 g</span>
+        </div>
+
+        <div class="flex items-center gap-3 rounded-lg neu-inset px-3 py-2.5">
+          <span class="material-symbols-outlined text-ink-muted text-xl">science</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-slate-800 truncate">Na₂HPO₄</p>
+            <p class="text-xs text-ink-muted truncate">LOT: NAHP-2025-03 · 유효: 2025.03.30</p>
+          </div>
+          <span class="text-sm font-bold text-ink shrink-0">14.4 g</span>
+        </div>
+
+        <div class="flex items-center gap-3 rounded-lg neu-inset px-3 py-2.5">
+          <span class="material-symbols-outlined text-ink-muted text-xl">science</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-slate-800 truncate">KH₂PO₄</p>
+            <p class="text-xs text-ink-muted truncate">LOT: KHP-2025-01 · 유효: 2025.01.15</p>
+          </div>
+          <span class="text-sm font-bold text-ink shrink-0">2.4 g</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- end scrollable content -->
+
+    </div><!-- end section-progress -->
+
+  </div><!-- end content-area -->
+
+  <!-- ══ Fixed Bottom Navigation ══ -->
+  <nav class="shrink-0 relative flex items-stretch neu-raised" style="border-radius:0;">
+
+    <!-- 스케줄 예약 tab -->
+    <button onclick="navigate('schedule')"
+            id="tab-schedule"
+            class="nav-tab flex-1 relative flex flex-col items-center justify-center gap-1 py-3 text-ink-muted hover:text-primary transition-colors focus:outline-none"
+            aria-label="스케줄 예약">
+      <span class="nav-icon material-symbols-outlined text-2xl">calendar_month</span>
+      <span class="nav-label text-[11px] font-medium">스케줄 예약</span>
+    </button>
+
+    <!-- Center FAB (홈) -->
+    <div class="flex items-center justify-center w-24">
+      <button onclick="navigate('home')"
+              id="tab-home"
+              class="nav-tab flex flex-col items-center justify-center w-14 h-14 rounded-full neu-btn-primary active:scale-95 transition-all -mt-6 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+              aria-label="홈으로 이동">
+        <span class="nav-icon material-symbols-outlined text-[30px] text-white" style="font-variation-settings: 'FILL' 1;">home</span>
+      </button>
+    </div>
+
+    <!-- 데이터 센터 tab -->
+    <button onclick="navigate('data')"
+            id="tab-data"
+            class="nav-tab flex-1 relative flex flex-col items-center justify-center gap-1 py-3 text-ink-muted hover:text-primary transition-colors focus:outline-none"
+            aria-label="데이터 센터">
+      <span class="nav-icon material-symbols-outlined text-2xl">storage</span>
+      <span class="nav-label text-[11px] font-medium">데이터 센터</span>
+    </button>
+
+  </nav>
+
+</div><!-- end app shell -->
+
+
+<!-- ══ New Request Modal ══ -->
+<div id="modal-new-request"
+     class="fixed inset-0 bg-black/50 z-50 hidden items-end justify-center sm:items-center modal-bg-in"
+     role="dialog" aria-modal="true" aria-labelledby="nr-title"
+     onclick="closeNewRequest(event)">
+  <div class="w-full max-w-[768px] neu-raised rounded-t-2xl sm:rounded-2xl sm:mx-4 overflow-hidden modal-panel-in"
+       onclick="event.stopPropagation()">
+
+    <!-- Modal header -->
+    <div class="flex items-center gap-3 px-5 py-4">
+      <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/15 text-primary shrink-0">
+        <span class="material-symbols-outlined text-xl">add_circle</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-[11px] text-ink-muted uppercase tracking-wide font-medium">Lab-Guide</p>
+        <h2 class="text-lg font-bold text-slate-900" id="nr-title">새 실험 의뢰</h2>
+      </div>
+      <button onclick="closeNewRequest()" class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-surface-alt text-ink-soft transition-colors" aria-label="닫기">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Modal body: form -->
+    <div class="px-5 py-4 flex flex-col gap-4">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[11px] font-bold text-ink-soft uppercase tracking-wide">버퍼 종류 <span class="text-red-400">*</span></label>
+        <select class="w-full rounded-xl neu-raised text-slate-900 px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors">
+          <option value="">선택하세요...</option>
+          <option>10x PBS Buffer</option>
+          <option>TAE Buffer</option>
+          <option>Tris-HCl (pH 8.0)</option>
+          <option>HEPES Buffer</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-bold text-ink-soft uppercase tracking-wide">목표 용량 <span class="text-red-400">*</span></label>
+          <div class="flex rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-colors">
+            <input type="number" min="0.1" step="0.1" placeholder="5" class="flex-1 neu-raised text-slate-900 px-4 py-3 text-sm focus:outline-none border-none"/>
+            <select class="bg-surface-alt text-ink px-3 text-sm border-l border-stone-300/30 focus:outline-none">
+              <option>L</option>
+              <option>mL</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-bold text-ink-soft uppercase tracking-wide">희망 날짜 <span class="text-red-400">*</span></label>
+          <input type="date" class="w-full rounded-xl neu-raised text-slate-900 px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary transition-colors"/>
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[11px] font-bold text-ink-soft uppercase tracking-wide">특이사항 (선택)</label>
+        <textarea rows="2" placeholder="요청 사항을 입력하세요..." class="w-full rounded-xl neu-raised text-slate-900 px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus:border-primary resize-none transition-colors"></textarea>
+      </div>
+      <p class="text-[11px] text-ink-muted leading-relaxed">
+        의뢰 제출 후 담당 QC 기술자에게 자동 알림이 발송됩니다.
+      </p>
+    </div>
+
+    <!-- Modal actions -->
+    <div class="flex gap-3 px-5 pb-6 pt-2">
+      <button onclick="closeNewRequest()"
+              class="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-stone-300/30 text-ink font-bold text-base hover:bg-surface-alt active:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400/40">
+        <span class="material-symbols-outlined text-xl">close</span>취소
+      </button>
+      <button onclick="submitNewRequest()"
+              class="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-base text-white bg-primary hover:bg-primary/90 active:bg-primary/80 transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30">
+        <span class="material-symbols-outlined text-xl">send</span>의뢰 제출
+      </button>
+    </div>
+  </div>
+</div><!-- end modal -->
+
+
+<script>
+  // ── SPA routing ──
+  var currentSection = 'home';
+
+  var SECTION_TITLES = {
+    home: '의뢰자 포털',
+    schedule: '스케줄 예약',
+    data: '데이터 센터',
+    progress: '진행상황',
+    issues: '이슈관리',
+    results: '실험 결과',
+  };
+
+  var VALID_SECTIONS = ['home', 'schedule', 'data', 'progress', 'issues', 'results'];
+  var TAB_SECTIONS = ['home', 'schedule', 'data'];
+
+  function navigate(section) {
+    // Deactivate all sections
+    document.querySelectorAll('.spa-section').forEach(function(el) {
+      el.classList.remove('active');
+    });
+    // Activate target section
+    const targetEl = document.getElementById('section-' + section);
+    if(targetEl) targetEl.classList.add('active');
+
+    // Update master header visibility
+    var masterHeader = document.getElementById('master-header');
+    if (masterHeader) {
+      if (TAB_SECTIONS.indexOf(section) !== -1) {
+        masterHeader.style.display = 'flex';
+      } else {
+        masterHeader.style.display = 'none';
+      }
+    }
+
+    // Update nav tabs
+    document.querySelectorAll('.nav-tab').forEach(function(tab) {
+      tab.classList.remove('nav-active');
+    });
+    var activeTab = document.getElementById('tab-' + section);
+    if (activeTab) activeTab.classList.add('nav-active');
+
+    // Update header title
+    document.getElementById('header-title').textContent = SECTION_TITLES[section] || '의뢰자 포털';
+
+    // Update hash (for bookmarking / back button)
+    history.pushState({section: section}, '', '#' + section);
+    currentSection = section;
+  }
+
+  // Handle hash on load and back/forward
+  function applyHash() {
+    var hash = window.location.hash.replace('#', '') || 'home';
+    if (VALID_SECTIONS.indexOf(hash) === -1) hash = 'home';
+    // Directly set without pushing another state
+    document.querySelectorAll('.spa-section').forEach(function(el) { el.classList.remove('active'); });
+    
+    const targetEl = document.getElementById('section-' + hash);
+    if(targetEl) targetEl.classList.add('active');
+    
+    var masterHeader = document.getElementById('master-header');
+    if (masterHeader) {
+      if (TAB_SECTIONS.indexOf(hash) !== -1) {
+        masterHeader.style.display = 'flex';
+      } else {
+        masterHeader.style.display = 'none';
+      }
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(function(tab) { tab.classList.remove('nav-active'); });
+    var tab = document.getElementById('tab-' + hash);
+    if (tab) tab.classList.add('nav-active');
+    document.getElementById('header-title').textContent = SECTION_TITLES[hash] || '의뢰자 포털';
+    currentSection = hash;
+  }
+
+  window.addEventListener('popstate', applyHash);
+  applyHash();
+
+  // ── Filter chips ──
+  function setChip(btn) {
+    btn.closest('.flex').querySelectorAll('button').forEach(function(b) {
+      b.classList.remove('chip-active');
+      b.classList.add('bg-slate-100', 'text-slate-600');
+    });
+    btn.classList.add('chip-active');
+    btn.classList.remove('bg-slate-100', 'text-slate-600');
+  }
+
+  // ── New Request Modal ──
+  function openNewRequest() {
+    var modal = document.getElementById('modal-new-request');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeNewRequest(e) {
+    if (e && e.target !== document.getElementById('modal-new-request') && e.type === 'click') return;
+    var modal = document.getElementById('modal-new-request');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+
+  function submitNewRequest() {
+    var modal = document.getElementById('modal-new-request');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+    
+    // Success toast
+    var toast = document.createElement('div');
+    toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-bold px-6 py-4 rounded-full shadow-2xl z-50 whitespace-nowrap flex items-center gap-2 transform transition-all duration-300';
+    toast.style.transform = 'translate(-50%, 20px)';
+    toast.style.opacity = '0';
+    toast.innerHTML = '<span class="material-symbols-outlined text-green-400 text-lg">check_circle</span> 성공적으로 새 의뢰가 접수되었습니다';
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.style.transform = 'translate(-50%, 0)';
+      toast.style.opacity = '1';
+    });
+
+    setTimeout(function() { 
+      toast.style.transform = 'translate(-50%, 20px)';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 2500);
+  }
+
+  // Close modal when clicking backdrop
+  document.getElementById('modal-new-request').addEventListener('click', function(e) {
+    if (e.target === this) closeNewRequest();
+  });
+
+
+</script>
+</body>
+</html>

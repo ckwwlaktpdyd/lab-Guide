@@ -1,0 +1,25 @@
+{
+  "screenshot": {
+    "name": "projects/4570376477704571131/files/2d352e9d3da64625aaa938ac78e9d52c",
+    "downloadUrl": "https://lh3.googleusercontent.com/aida/AOfcidWV3ILSUNzGmyG2zxRaQZ6C2bjpUfLOAUvVaCik24CLdEdux71YFoiKhyRB7rjFnntCt6DzybfNACUnqbYi-cQdZn5VcEfOD5bkRPB8USRJ0UmRkqug8Z6sF576UMppv8bUEompdzY1_SUi9MaZT8hRecZkcDLsrptLXWyHGvK8nt2wu2EtaeYGCtX9a8yscv_E2FVhsrB6e4lbDXnsCL97akYdo-lUWEMr_Ve3wTNK8xH7JiCgiKaCRqE"
+  },
+  "htmlCode": {
+    "name": "projects/4570376477704571131/files/d67dae1b7dc544ff858cd6dd6a9463dd",
+    "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sX2ZjN2Q4Y2ViODBkMTRjZTdhNjEyNzE2YzgxYjE5MzRiEgsSBxCIjbTGug8YAZIBIwoKcHJvamVjdF9pZBIVQhM0NTcwMzc2NDc3NzA0NTcxMTMx&filename=&opi=89354086",
+    "mimeType": "text/html"
+  },
+  "id": "54f7a95b408e42bda5216994211e199b",
+  "generatedBy": "figaro_agent",
+  "width": "780",
+  "height": "2002",
+  "title": "Preparation Guide",
+  "prompt": "Preparation Guide Screen for '10x PBS Buffer'. Title: '10x PBS Buffer - Preparation'. Left side: Icons of tools (Beaker, Media Bottle, pH Meter). Right side: Checklist of reagents (NaCl: 400g RT, KCl: 10g 2-8°C) with checkboxes. Bottom-right: Large blue 'Next: Start Preparation' button. iPad Mini layout.",
+  "name": "projects/4570376477704571131/screens/54f7a95b408e42bda5216994211e199b",
+  "theme": {},
+  "deviceType": "MOBILE",
+  "screenType": "DESIGN",
+  "screenMetadata": {
+    "agentType": "PRO_AGENT",
+    "status": "COMPLETE"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "screenshot": {
+    "name": "projects/4570376477704571131/files/4cce59fd526e42258be292150f081a37",
+    "downloadUrl": "https://lh3.googleusercontent.com/aida/AOfcidXTe8OD65ZJQJ0vfgeMIwiaSU9quW8NCPwbmpmDIlICRgQ7MnmADA1J-BBg6V8wQrMBZKMhvFhgo99N6Xiim4bpJ0OyEvGvSpmSFLJhuwKvkI3yvJuDQisVhdboGQEzB5FTEXo2umDamvMegY44TrmpYN4O487u6Ro4qxlcSbA-jqGFfARComyUpPTGM5B_Dxx7FbIVbpAoO7dmKseahr-mzNaUViO8OB_1aOjuPjut7X46GK3K9REwlw"
+  },
+  "htmlCode": {
+    "name": "projects/4570376477704571131/files/1837324664904040b771cc17dd719b47",
+    "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzBmNDVhZTc0MTlhMzRmN2RiYzYzNmMzZDRkZjgxNmI1EgsSBxCIjbTGug8YAZIBIwoKcHJvamVjdF9pZBIVQhM0NTcwMzc2NDc3NzA0NTcxMTMx&filename=&opi=89354086",
+    "mimeType": "text/html"
+  },
+  "id": "e6b0dc9ff4164300854fa7d8934e13a8",
+  "generatedBy": "figaro_agent",
+  "width": "780",
+  "height": "3002",
+  "title": "Batch Summary",
+  "prompt": "Batch Summary & Review Screen. Title: 'Batch Summary'. A scrolling list of all steps with timestamps and recorded values. A clear section for 'Logged Deviations'. Bottom: Digital E-Signature area. Bottom-right: Large 'Approve and Log Batch' button. iPad Mini layout.",
+  "name": "projects/4570376477704571131/screens/e6b0dc9ff4164300854fa7d8934e13a8",
+  "theme": {},
+  "deviceType": "MOBILE",
+  "screenType": "DESIGN",
+  "screenMetadata": {
+    "agentType": "PRO_AGENT",
+    "status": "COMPLETE"
+  }
+}

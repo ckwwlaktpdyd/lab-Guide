@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Active Workflow — 시퀀스 진행</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface":     "#E7E5E4",
+          "surface-alt": "#EDEBEA",
+          "raised":      "#E7E5E4",
+          "primary":     "#006666",
+          "primary-dark":"#004d4d",
+          "accent":      "#c45e2c",
+          "ink":         "#1E2938",
+          "ink-soft":    "#57534e",
+          "ink-muted":   "#a8a29e",
+          "pass":        "#00A63D",
+          "pass-bg":     "#dcfce7",
+          "warn":        "#FE9900",
+          "warn-bg":     "#fef3c7",
+          "fail":        "#FF2157",
+          "fail-bg":     "#fee2e2",
+        },
+        fontFamily: {
+          "sans":  ["Inter", "Noto Sans KR", "Apple SD Gothic Neo", "sans-serif"],
+          "title": ["Space Mono", "JetBrains Mono", "monospace"],
+          "mono":  ["JetBrains Mono", "monospace"],
+        },
+        borderRadius: {"DEFAULT": "0.375rem", "lg": "10px", "xl": "14px", "2xl": "1rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { min-height: 100dvh; background: #E7E5E4; font-family: "Inter", "Noto Sans KR", sans-serif; color: #1E2938; -webkit-font-smoothing: antialiased; }
+  .font-data { font-family: "JetBrains Mono", monospace; }
+  .font-title { font-family: "Space Mono", "JetBrains Mono", monospace; }
+  .neu-raised { background: #E7E5E4;  border-radius: 14px; box-shadow: 6px 6px 12px #bebebe, -6px -6px 12px #ffffff; }
+  .neu-inset  { background: #E7E5E4;  border-radius: 10px; box-shadow: inset 4px 4px 8px #bebebe, inset -4px -4px 8px #ffffff; }
+  .neu-btn    { background: #E7E5E4;  border-radius: 14px; box-shadow: 4px 4px 8px #bebebe, -4px -4px 8px #ffffff; transition: all 0.15s ease; }
+    .neu-btn:hover {
+    box-shadow:
+      5px 5px 10px #bebebe,
+      -5px -5px 10px #ffffff;
+  }
+  .neu-btn:active { box-shadow: inset 3px 3px 6px #bebebe, inset -3px -3px 6px #ffffff; }
+  .neu-btn-primary { background: linear-gradient(135deg, #007a7a 0%, #005252 100%);  border-radius: 14px; box-shadow: 4px 4px 8px #bebebe, -4px -4px 8px #ffffff, inset 0 1px 0 rgba(255,255,255,0.15); color: white; transition: all 0.15s ease; }
+    .neu-btn-primary:hover {
+    box-shadow:
+      5px 5px 10px #bebebe,
+      -5px -5px 10px #ffffff;
+    background: linear-gradient(135deg, #008a8a 0%, #006060 100%);
+  }
+  .neu-btn-primary:active { box-shadow: inset 3px 3px 6px rgba(0,0,0,0.2), inset -3px -3px 6px rgba(255,255,255,0.05); }
+  .scroll-hide::-webkit-scrollbar { display: none; }
+  .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  body { min-height: 100dvh; }
+  .scroll-hide::-webkit-scrollbar { display: none; }
+  .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* Animations */
+  @keyframes gauge-fill { from { width: 0% } }
+  .gauge-bar { transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes pulse-live { 0%,100%{opacity:1} 50%{opacity:.35} }
+  .animate-live { animation: pulse-live 1.5s ease-in-out infinite; }
+  @keyframes fade-in-up { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
+  .fade-in-up { animation: fade-in-up 0.3s ease-out both; }
+  
+  /* Modal animations */
+  @keyframes modal-bg-in { from{opacity:0} to{opacity:1} }
+  @keyframes modal-panel-in { from{opacity:0;transform:translateY(100%)} to{opacity:1;transform:translateY(0)} }
+  .modal-bg-in { animation: modal-bg-in 0.2s ease-out both; }
+  .modal-panel-in { animation: modal-panel-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* P0: Respect reduced-motion preference (WCAG / ui-ux-pro-max critical) */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body class="bg-surface flex justify-center">
+
+<div class="w-full max-w-[768px] flex flex-col bg-surface-alt shadow-xl" style="height:100dvh">
+
+  <!-- ══ Header ══ -->
+  <header class="shrink-0 pt-3 pb-2 px-3 bg-surface-alt z-10 sticky top-0">
+    <div class="flex items-center justify-between">
+      <a href="preparation_guide.html"
+         class="flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-surface-alt transition-colors text-ink focus-visible:outline-none focus-visible:ring-2 focus:ring-primary/40"
+         aria-label="안전 가이드로 돌아가기">
+        <span class="material-symbols-outlined text-[26px]">arrow_back</span>
+      </a>
+      <!-- Step Dots Area -->
+      <div class="flex items-center gap-1.5" id="step-dots">
+        <!-- Injected via JS -->
+      </div>
+      <div class="size-11"></div><!-- Blank placeholder for center alignment -->
+    </div>
+  </header>
+
+  <!-- ══ Content Area ══ -->
+  <div class="flex-1 overflow-y-auto scroll-hide px-5 pt-6 pb-8 flex flex-col items-center">
+    
+    <!-- Title & Status -->
+    <div class="w-full flex flex-col items-center text-center mb-8 fade-in-up">
+      <p class="text-primary font-bold text-[13px] tracking-widest uppercase mb-1" id="step-index-text">Step 2 of 5</p>
+      <h1 class="text-3xl font-extrabold text-ink tracking-tight leading-tight mb-4" id="step-title">Measure NaCl</h1>
+      
+      <!-- Device Connect Status -->
+      <div class="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-green-50 border border-green-200 relative overflow-hidden">
+        <span class="material-symbols-outlined text-green-600 text-[18px]">bluetooth</span>
+        <span class="text-[12px] font-bold text-green-700 tracking-wide uppercase mt-0.5">Mettler Toledo Scale</span>
+        <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-live ml-1 shrink-0"></span>
+      </div>
+    </div>
+
+    <!-- Main Gauge Card -->
+    <div class="w-full max-w-sm neu-raised rounded-3xl p-6 flex flex-col relative overflow-hidden fade-in-up" style="animation-delay: 0.1s;">
+      
+      <!-- Internal Layout: Target vs Current -->
+      <div class="flex justify-between items-end mb-8 relative z-10">
+        <div class="flex flex-col">
+          <span class="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-1">Target</span>
+          <div class="flex items-end">
+            <span class="text-3xl font-extrabold text-ink-muted tabular-nums leading-none" id="target-value">400</span>
+            <span class="text-base font-bold text-ink-muted ml-0.5 mb-0.5" id="target-unit">g</span>
+          </div>
+        </div>
+        
+        <div class="flex flex-col items-end">
+          <span class="text-[11px] font-bold text-primary uppercase tracking-widest mb-1">Live Sensor</span>
+          <div class="flex items-end">
+            <span class="text-5xl font-extrabold text-ink tabular-nums leading-none tracking-tight" id="current-value">85</span>
+            <span class="text-xl font-bold text-ink-muted ml-1 mb-1" id="current-unit">g</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progressive Bar -->
+      <div class="w-full h-8 bg-surface-alt rounded-full relative overflow-hidden shadow-inner mb-6 z-10">
+        <div class="absolute top-0 bottom-0 left-0 bg-primary/20" style="width: 100%; border-right: 2px dashed #cbd5e1;"></div> <!-- background target marker -->
+        <div class="absolute top-0 bottom-0 left-0 bg-primary rounded-full gauge-bar flex items-center justify-end px-2" id="weight-bar" style="width: 21.25%;">
+          <div class="w-1.5 h-4 neu-raised/50 rounded-full"></div>
+        </div>
+      </div>
+
+      <!-- Completion Check -->
+      <div id="weight-complete-msg" class="hidden items-center justify-center gap-2 text-green-600 font-bold bg-green-50 py-3 rounded-xl border border-green-100">
+        <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1">check_circle</span>
+        데이터 로깅 완료 (Target Reached)
+      </div>
+
+      <!-- Diagnostic Simulators (Developer/Prototype Only) -->
+      <div class="flex gap-2 mt-4 pt-4">
+        <button onclick="addWeight(50)"
+                class="flex-1 py-2.5 neu-inset text-ink-soft font-bold text-xs rounded-lg hover:bg-surface-alt active:scale-95 transition-all text-center">
+          + 50g (시연용)
+        </button>
+        <button onclick="resetWeight()"
+                class="w-12 py-2.5 neu-inset text-ink-muted rounded-lg hover:bg-surface-alt hover:text-ink-soft active:scale-95 transition-all flex justify-center">
+          <span class="material-symbols-outlined text-[18px]">device_reset</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Help Info -->
+    <p class="text-xs text-ink-muted text-center mt-6 fade-in-up" style="animation-delay: 0.2s;">
+      저울에서 측정된 데이터는 Audit Trail에 <strong>실시간 기록 및 서명</strong>됩니다.
+    </p>
+    
+  </div><!-- end content-area -->
+
+  <!-- ══ Footer Actions ══ -->
+  <footer class="shrink-0 flex items-center gap-3 p-5 neu-raised shadow-[0_-4px_15px_rgba(0,0,0,0.02)]">
+    <button onclick="openDeviation()"
+            class="flex items-center justify-center size-14 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 active:scale-95 transition-all flex-shrink-0 focus-visible:outline-none focus-visible:ring-4 focus:ring-amber-500/20"
+            aria-label="편차(이슈) 발생 보고">
+      <span class="material-symbols-outlined text-[26px]">warning</span>
+    </button>
+    <button onclick="nextStep()"
+            id="btn-next"
+            class="flex items-center justify-center gap-2 rounded-xl h-14 flex-1 bg-surface text-ink-muted font-bold text-lg transition-all focus-visible:outline-none focus-visible:ring-4"
+            disabled
+            aria-label="측정 완료 후 다음 단계 이동">
+      <span id="next-btn-label">기록 대기 중...</span>
+      <span class="material-symbols-outlined text-[22px]">arrow_forward</span>
+    </button>
+  </footer>
+
+</div><!-- end shell -->
+
+
+<!-- ══ Deviation Overlay (BottomSheet Style) ══ -->
+<div id="deviation-overlay"
+     class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex-col justify-end modal-bg-in"
+     role="dialog" aria-modal="true" onclick="closeDeviation(false)">
+  
+  <div class="neu-raised w-full max-w-[768px] mx-auto rounded-t-3xl p-6 pb-10 flex flex-col modal-panel-in" onclick="event.stopPropagation()">
+    
+    <!-- Drag handle -->
+    <div class="w-12 h-1.5 bg-surface rounded-full mx-auto mb-6"></div>
+
+    <div class="flex items-center gap-3 mb-6">
+      <div class="flex items-center justify-center size-12 bg-red-100 text-red-600 rounded-full">
+        <span class="material-symbols-outlined text-2xl">report</span>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-ink">편차(Deviation) 발생 보고</h2>
+        <p class="text-xs font-medium text-ink-soft mt-0.5">절차상 문제가 생겼을 경우 조치 내역을 기록합니다.</p>
+      </div>
+    </div>
+
+    <!-- Known Issue Example -->
+    <div class="neu-inset rounded-xl p-4 mb-5">
+      <div class="flex items-start gap-2">
+        <span class="material-symbols-outlined text-ink-muted text-[18px] mt-0.5">info</span>
+        <div>
+          <p class="text-sm font-bold text-ink">추천 조치 가이드</p>
+          <p class="text-[13px] text-ink-soft mt-1 leading-relaxed">
+            버퍼가 얼어있거나 녹지 않을 시, Heating Bath (37°C)를 사용하여 10분간 가열 후 재시도 하십시오.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <label class="block text-[12px] font-bold text-ink-muted uppercase mb-2 ml-1">실제 취한 시정 로깅 내용</label>
+    <textarea rows="3"
+            class="w-full rounded-xl neu-raised text-ink text-sm px-4 py-3 mb-6 resize-none focus-visible:outline-none focus-visible:ring-2 focus:ring-primary/40 focus:border-primary"
+            placeholder="실제 조치된 사항을 입력하세요..."></textarea>
+
+    <div class="flex gap-2">
+      <button onclick="closeDeviation(false)"
+              class="flex-1 py-4 neu-inset text-ink-muted font-bold rounded-xl active:scale-[0.98] transition-transform">
+        취소
+      </button>
+      <button onclick="closeDeviation(true)"
+              class="flex-[2] flex items-center justify-center gap-2 py-4 bg-slate-900 text-white font-bold rounded-xl active:scale-[0.98] transition-transform shadow-slate-900/20">
+        <span class="material-symbols-outlined text-[18px]">cloud_upload</span>
+        로그 기록 후 조치 완료
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Step state ──
+  const STEPS = [
+    { title: 'Tare Balance (영점 점검)', target: null,  unit: null },
+    { title: 'Measure NaCl',             target: 400,   unit: 'g'  },
+    { title: 'Measure KCl',              target: 10,    unit: 'g'  },
+    { title: 'Mix Reagents',             target: null,  unit: null },
+    { title: 'pH Adjustment',            target: null,  unit: null },
+  ];
+
+  const wf = {
+    step: 1,        // 0-indexed (Start at Step 2)
+    weight: 0,
+  };
+
+  function updateUI() {
+    const s = STEPS[wf.step];
+    const stepNum = wf.step + 1;
+    const totalSteps = STEPS.length;
+
+    document.getElementById('step-index-text').textContent = `Step ${stepNum} of ${totalSteps}`;
+    document.getElementById('step-title').textContent = s.title;
+
+    // Build Native Mobile Step Dots
+    const dotsEl = document.getElementById('step-dots');
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < totalSteps; i++) {
+        const dot = document.createElement('div');
+        if (i < stepNum - 1) { // completed
+            dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-300';
+        } else if (i === stepNum - 1) { // active
+            dot.className = 'w-4 h-1.5 rounded-full bg-primary transition-all duration-300';
+        } else { // future
+            dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-200';
+        }
+        dotsEl.appendChild(dot);
+    }
+
+    const nextBtn = document.getElementById('btn-next');
+    const label = document.getElementById('next-btn-label');
+
+    // Weight gauge logic
+    if (s.target) {
+      document.getElementById('target-value').textContent = s.target;
+      document.getElementById('target-unit').textContent = s.unit;
+      document.getElementById('current-value').textContent = wf.weight;
+      document.getElementById('current-unit').textContent = s.unit;
+      
+      const weightPct = Math.min(100, (wf.weight / s.target) * 100).toFixed(1);
+      document.getElementById('weight-bar').style.width = weightPct + '%';
+      
+      const isComplete = wf.weight >= s.target;
+      document.getElementById('weight-complete-msg').classList.toggle('hidden', !isComplete);
+      document.getElementById('weight-complete-msg').classList.toggle('flex', isComplete);
+
+      if (isComplete) {
+         // Activate Button
+         nextBtn.disabled = false;
+         nextBtn.className = "flex items-center justify-center gap-2 rounded-xl h-14 flex-1 bg-primary text-white font-bold text-lg hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/30 focus-visible:outline-none focus-visible:ring-4 focus:ring-primary/30";
+         label.textContent = wf.step >= totalSteps - 1 ? "최종 승인 및 종료" : "다음 단계로";
+         // Auto-scroll bit for small screens
+         document.getElementById('weight-complete-msg').classList.add('fade-in-up');
+      } else {
+         nextBtn.disabled = true;
+         // Deactivate Button
+         nextBtn.className = "flex items-center justify-center gap-2 rounded-xl h-14 flex-1 bg-slate-200 text-slate-400 font-bold text-lg transition-all focus-visible:outline-none focus-visible:ring-4";
+         label.textContent = "가중치 기록 대기 중...";
+      }
+    } else {
+      // Step without gauge (like Mixing or Tare checking)
+      document.getElementById('target-value').textContent = '—';
+      document.getElementById('target-unit').textContent = '';
+      document.getElementById('current-value').textContent = '—';
+      document.getElementById('current-unit').textContent = '';
+      document.getElementById('weight-bar').style.width = '0%';
+      
+      // Auto enable next button
+      nextBtn.disabled = false;
+      nextBtn.className = "flex items-center justify-center gap-2 rounded-xl h-14 flex-1 bg-primary text-white font-bold text-lg hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/30 focus-visible:outline-none focus-visible:ring-4 focus:ring-primary/30";
+      label.textContent = wf.step >= totalSteps - 1 ? "최종 승인 및 종료" : "확인 및 다음 단계";
+      document.getElementById('weight-complete-msg').classList.add('hidden');
+      document.getElementById('weight-complete-msg').classList.remove('flex');
+    }
+  }
+
+  function addWeight(amount) {
+    const s = STEPS[wf.step];
+    if (!s.target) return;
+    wf.weight = Math.min(s.target, wf.weight + amount);
+    updateUI();
+  }
+
+  function resetWeight() {
+    wf.weight = 0;
+    updateUI();
+  }
+
+  function nextStep() {
+    if (wf.step < STEPS.length - 1) {
+      wf.step++;
+      wf.weight = 0;
+      updateUI();
+    } else {
+      window.location.href = 'manufacturer_home.html';
+    }
+  }
+
+  // ── Deviation overlay ──
+  function openDeviation() {
+    const overlay = document.getElementById('deviation-overlay');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDeviation(acknowledged) {
+    const overlay = document.getElementById('deviation-overlay');
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+    document.body.style.overflow = '';
+    
+    if (acknowledged) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-bold px-6 py-3 rounded-full shadow-2xl z-50 fade-in-up';
+      toast.innerHTML = '<span class="material-symbols-outlined align-middle mr-1 text-[18px]">verified</span> 편차 조치사항이 블록체인 노드에 동기화되었습니다.';
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px) translateX(-50%)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+  }
+
+  // Init UI on load (defaulting to 85g for mockup)
+  wf.weight = 85;
+  updateUI();
+</script>
+</body>
+</html>
