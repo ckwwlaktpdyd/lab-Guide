@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-paper font-sans text-body text-ink;
+    /* 표·KPI 정렬을 위해 전역 적용 — docs/ui-rules.md §2 */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 데이터(LOT·측정값·타임스탬프)는 항상 모노스페이스 */
+  code,
+  kbd,
+  samp {
+    @apply font-mono;
+  }
+
+  /* 키보드 탐색에만 링을 띄운다. 마우스 클릭에는 뜨지 않는다. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-indicator-teal/40;
+  }
+
+  /* P0 — docs/ui-rules.md §1.1. 구 patch_p0.js가 매번 주입하던 것을 기본값으로 승격. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
