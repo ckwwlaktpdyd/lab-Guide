@@ -41,18 +41,24 @@ Buffer 제조 QC 프로세스를 관리하는 서비스. 두 역할이 존재한
 | 프레임워크 | Vite + React + TypeScript | SSR 불필요, Next.js보다 가볍고 Claude Code 작업에 수월 |
 | 스타일 | Tailwind CSS | 공유 디자인 토큰을 config 하나로 정의, 두 사이트가 preset 상속 |
 | 백엔드/DB | Supabase (무료 티어, Postgres) | 서버 코드 없이 두 사이트 연동 |
-| 실시간 연동 | Supabase Realtime 구독 | 상태 변경이 상대 사이트에 즉시 반영 — 승인 체인 시연의 핵심 |
+| 실시간 연동 | Supabase Realtime 구독 | 상태 변경이 상대 사이트에 즉시 반영 — 리뷰 체인 시연의 핵심 |
 | 인증 | Supabase Auth (이메일 매직링크) | MVP에 충분. role은 User 테이블에서 관리 |
 | 패키지 관리 | pnpm 모노레포 | 사이트 분리 구조 대응 |
 | 배포 | Vercel 프로젝트 2개 | 사이트별 독립 배포 |
 
+> ⚠️ **개정(2026-08-01)** — pnpm 모노레포 구조는 폐기했다. **단일 Vite + React 프로젝트**에서 두 앱을 라우트로 분리한다.
+> 포트폴리오 MVP 규모에 workspace 경계는 관리 비용만 늘리고, 두 앱이 어차피 같은 Supabase 프로젝트를 쓰므로 패키지로 갈라둘 실익이 없다.
+> 배포도 Vercel 프로젝트 1개로 줄인다. 아래 표의 "패키지 관리 / 배포" 행은 이 개정으로 대체된다.
+
 ```
-/apps
-  /client-portal          # 의뢰자 포털 (반응형 웹)
-  /manufacturer-console   # 제조자 콘솔 (아이패드 미니 가로 전용)
-/packages
-  /ui                     # 공유 디자인 토큰 + 공통 컴포넌트
-  /db                     # Supabase 클라이언트, 타입, 쿼리 헬퍼
+/src
+  /apps
+    /client     # 의뢰자 포털 (반응형 웹)
+    /console    # 제조자 콘솔 (아이패드 미니 가로 전용)
+  /shared
+    /ui         # 공유 디자인 토큰 + 공통 컴포넌트
+    /db         # Supabase 클라이언트, 타입, 쿼리 헬퍼
+  /routes.tsx   # 두 앱 + 랜딩/스위처
 ```
 
 - 두 사이트가 **동일한 Supabase 프로젝트**를 공유 → 상태 연동에 별도 API 서버 불필요
@@ -206,12 +212,12 @@ v1의 화면 3~6(공정 조회/이슈/배치 요약/결과)은 **"의뢰 상세"
 
 1. 레포 루트 `CLAUDE.md` 유지 — 본 문서 요약 + 컨벤션 + 분리 구조를 매 세션 자동 컨텍스트로 활용
 2. 마일스톤 순서:
-   - ① `/packages/ui` 공유 디자인 토큰 + 컴포넌트 (Tailwind preset)
-   - ② `/packages/db` Supabase 스키마 + 시드 데이터 + RLS
+   - ① `src/shared/ui` 공유 디자인 토큰 + 컴포넌트
+   - ② `src/shared/db` Supabase 스키마 + 시드 데이터 + RLS
    - ③ 제조자 콘솔: 의뢰함 · 배치 상세 핵심 플로우
    - ④ 제조자 콘솔: 대시보드 · 나머지
    - ⑤ 의뢰자 포털: 전체 화면
-   - ⑥ Realtime 연동 + 승인 체인 E2E 시연
+   - ⑥ Realtime 연동 + 리뷰 체인 E2E 시연
 3. 마일스톤/브랜치 단위 커밋 리뷰
 4. 아이패드 미니 스크린샷을 찍어 vision으로 목표 시안과 자체 비교 검증
 

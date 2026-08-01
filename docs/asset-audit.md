@@ -19,7 +19,7 @@
 ## 1. 재사용 — 마일스톤 ①의 직접 입력
 
 ### `docs/mockups/design-tokens.html`
-`packages/ui` Tailwind preset의 1:1 소스. `:root` CSS 변수 9색 + 타입 스케일 5단 + 시그니처 스테퍼가 그대로 토큰이 된다.
+`src/shared/ui` 토큰의 1:1 소스. `:root` CSS 변수 9색 + 타입 스케일 5단 + 시그니처 스테퍼가 그대로 토큰이 된다.
 
 ### `client-portal-hifi.html` / `manufacturer-console-hifi.html`
 공통 컴포넌트가 이미 CSS 클래스로 분해되어 있어 그대로 매핑 가능하다.
@@ -48,7 +48,7 @@
 - `design-tokens-spec.md` — 4px 배수 그리드, 보더 1.5px/선택 2px, 타입 스케일 px 값, 다크모드 `#101B1D` + 채도 +8%
 - `wireframe-spec-manufacturer.md` — 스플릿뷰 실측 폭(레일 88 / 리스트 320 / 상세 730pt), 완료 단계 취소선, 편차 탭 open/resolved 추적
 
-→ 위 값을 `packages/ui` 토큰과 CLAUDE.md로 올린 뒤 `docs/archive/` 삭제.
+→ 위 값을 `src/shared/ui` 토큰과 CLAUDE.md로 올린 뒤 `docs/archive/` 삭제.
 → `design-tokens-spec.md`는 `indicator-green`을 "완료 / **승인**"으로 표기하고 `wireframe-spec-manufacturer.md`는 "최종**승인** 요청"을 쓴다. 흡수 시 용어 교정 필수.
 
 ### `design-system/stitch/MASTER.md`
@@ -121,7 +121,7 @@ Google Stitch(figaro) 생성 메타데이터. **파일 자체는 가치 없음**
 ## 3. 즉시 폐기
 
 - **`index.html`** — `location.replace()` 리다이렉트. spec §3의 "랜딩/스위처 페이지"로 대체되며, `location.replace` 자체가 Stitch 안티패턴 목록에도 있다.
-- **`patch_p0.js`** — 일회성 패치 스크립트. 목적인 `prefers-reduced-motion`은 `packages/ui` 글로벌 CSS에 상시 포함되므로 스크립트 자체가 불필요. 규칙만 승계.
+- **`patch_p0.js`** — 일회성 패치 스크립트. 목적인 `prefers-reduced-motion`은 `src/shared/ui` 글로벌 CSS에 상시 포함되므로 스크립트 자체가 불필요. 규칙만 승계.
 - **`batch_summary.html`** — 다른 9장과 달리 **버퍼 도메인이 아니다.** "Batch ID #BX-8924 · Product: Thermal Compound Alpha", 100°C 가열/50L 투입/RPM 120/수율 48.5L의 화학플랜트 공정이다. 미변환 템플릿이며 추출할 도메인 데이터가 없다. UI 패턴(전자서명 PIN + 확인 문구)만 참고 가치가 있으나 hifi 시안의 `.approve` 패널이 이를 대체한다.
 - **`docs/mockups/*-wireframe.html` 2개** — hifi 시안이 동일 레이아웃을 토큰까지 얹어 완전히 대체. `docs/archive/`로 내리거나 삭제.
 
@@ -163,4 +163,6 @@ Google Stitch(figaro) 생성 메타데이터. **파일 자체는 가치 없음**
 2. 현 main을 `reference/v1-html` 태그로 보존
 3. 폐기 대상 제거 (기존 HTML 10장 · `index.html` · `patch_p0.js` · `screen_*.json` · `design-system/` · `docs/archive/` · wireframe 2종)
 4. `design-system/stitch/MASTER.md`의 접근성 규칙 → `docs/ui-rules.md`로 이전
-5. 모노레포 골격 → 마일스톤 ① (`packages/ui` 토큰 = 확정된 `design-tokens.html`)
+5. **단일 Vite + React + TS 프로젝트** 초기화 → 마일스톤 ① (`src/shared/ui` 토큰 = 확정된 `design-tokens.html`)
+
+> 구조 개정(2026-08-01): pnpm 모노레포는 폐기하고 단일 프로젝트에서 두 앱을 라우트로 분리한다. 화면은 hifi 시안 2종을 기준으로 옮기고, 로우파이 와이어프레임은 예정대로 폐기한다. CLAUDE.md·spec-v2 §4 반영 완료.
