@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>제조자 콘솔 와이어프레임 — Lab Guide MVP</title>
+<style>
+  :root{
+    --ink:#2b2f36;
+    --line:#c9ced6;
+    --fill:#eef0f3;
+    --fill-dark:#dde1e6;
+    --note:#e05d3d;
+    --done:#8a929c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,"Apple SD Gothic Neo","Pretendard",sans-serif;
+    background:#f7f7f5;
+    color:var(--ink);
+    padding:24px 16px 60px;
+  }
+  h1{font-size:20px;margin-bottom:4px;}
+  .sub{font-size:13px;color:#6b7280;margin-bottom:28px;}
+  .section-title{font-size:15px;font-weight:700;margin:36px 0 4px;}
+  .section-desc{font-size:12.5px;color:#6b7280;margin-bottom:12px;line-height:1.5;}
+
+  /* iPad frame: 1133x744 scaled */
+  .ipad-wrap{width:100%;max-width:680px;margin:0 auto;}
+  .ipad{
+    aspect-ratio:1133/744;
+    background:#fff;
+    border:2px solid var(--ink);
+    border-radius:10px;
+    display:flex;
+    overflow:hidden;
+    font-size:clamp(6px,1.6vw,11px);
+  }
+
+  /* icon rail */
+  .rail{
+    width:8.5%;
+    border-right:1.5px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;
+    padding-top:4%;gap:14%;
+    background:var(--fill);
+  }
+  .rail-item{
+    width:58%;aspect-ratio:1;
+    border:1.5px solid var(--line);
+    border-radius:20%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.85em;color:#6b7280;background:#fff;
+    text-align:center;line-height:1.1;
+  }
+  .rail-item.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .rail-item.badge{position:relative;}
+  .rail-item.badge::after{
+    content:"3";
+    position:absolute;top:-18%;right:-18%;
+    background:var(--note);color:#fff;
+    width:55%;aspect-ratio:1;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.8em;
+  }
+
+  /* list column */
+  .list{
+    width:29%;
+    border-right:1.5px solid var(--line);
+    display:flex;flex-direction:column;
+  }
+  .list-head{
+    padding:4% 6%;
+    border-bottom:1.5px solid var(--line);
+    font-weight:700;font-size:1.15em;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .filter{
+    display:flex;gap:4%;padding:3% 6%;
+    border-bottom:1.5px solid var(--line);
+  }
+  .chip{
+    border:1px solid var(--line);border-radius:999px;
+    padding:2% 6%;font-size:.9em;color:#6b7280;white-space:nowrap;
+  }
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .card{
+    margin:3.5% 5% 0;
+    border:1.5px solid var(--line);border-radius:8px;
+    padding:4% 5.5%;
+  }
+  .card.sel{border-color:var(--ink);border-width:2px;background:var(--fill);}
+  .card .lot{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:1em;}
+  .card .meta{color:#6b7280;font-size:.9em;margin-top:2%;}
+  .card .row{display:flex;justify-content:space-between;align-items:center;}
+  .badge-st{
+    border-radius:4px;padding:1.5% 4%;font-size:.85em;white-space:nowrap;
+    background:var(--fill-dark);color:var(--ink);
+  }
+  .badge-st.warn{background:var(--note);color:#fff;}
+
+  /* detail pane */
+  .detail{flex:1;display:flex;flex-direction:column;}
+  .d-head{
+    padding:3% 4%;
+    border-bottom:1.5px solid var(--line);
+  }
+  .d-head .top{display:flex;align-items:center;gap:2.5%;}
+  .d-head .lot{font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:1.5em;}
+  .d-head .target{
+    font-family:ui-monospace,Menlo,monospace;
+    color:#6b7280;font-size:1em;margin-top:1.5%;
+  }
+  .tabs{
+    display:flex;border-bottom:1.5px solid var(--line);
+  }
+  .tab{
+    flex:1;text-align:center;padding:2.5% 0;
+    color:#9aa1ab;border-bottom:3px solid transparent;font-size:1.05em;
+  }
+  .tab.on{color:var(--ink);font-weight:700;border-bottom-color:var(--ink);}
+  .tab.lock{color:#c9ced6;}
+  .d-body{flex:1;padding:3% 4%;overflow:hidden;}
+
+  /* process steps */
+  .step{
+    display:flex;align-items:center;gap:3%;
+    padding:2.2% 0;
+  }
+  .dot{
+    width:4.5%;aspect-ratio:1;border-radius:50%;
+    border:1.5px solid var(--line);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.8em;background:#fff;color:#fff;
+  }
+  .dot.done{background:var(--done);border-color:var(--done);}
+  .dot.now{background:var(--ink);border-color:var(--ink);}
+  .step .name{flex:1;}
+  .step.done .name{color:#9aa1ab;text-decoration:line-through;}
+  .step .time{font-family:ui-monospace,Menlo,monospace;color:#9aa1ab;font-size:.9em;}
+  .now-box{
+    margin:1.5% 0 1.5% 7.5%;
+    border:1.5px dashed var(--ink);border-radius:8px;
+    padding:3% 4%;
+  }
+  .now-box .fields{display:flex;gap:3%;margin-bottom:3.5%;}
+  .field{
+    flex:1;border:1px solid var(--line);border-radius:6px;
+    padding:2.5% 4%;color:#9aa1ab;font-size:.95em;
+  }
+  .actions{display:flex;gap:3%;}
+  .btn{
+    flex:1;text-align:center;padding:3.2% 0;
+    border-radius:8px;font-weight:700;font-size:1.05em;
+    border:1.5px solid var(--ink);
+  }
+  .btn.primary{background:var(--ink);color:#fff;}
+  .btn.ghost{color:var(--ink);background:#fff;}
+
+  /* annotations */
+  .ann{
+    max-width:680px;margin:14px auto 0;
+    font-size:12.5px;line-height:1.6;color:#4b5563;
+  }
+  .ann b{color:var(--note);}
+  .ann li{margin-bottom:6px;margin-left:18px;}
+
+  /* dashboard variant */
+  .dash-body{flex:1;padding:3.5% 4%;display:flex;flex-direction:column;gap:3.5%;}
+  .kpis{display:flex;gap:3.5%;}
+  .kpi{
+    flex:1;border:1.5px solid var(--line);border-radius:10px;
+    padding:4% 5%;
+  }
+  .kpi .n{font-size:2.4em;font-weight:800;font-family:ui-monospace,Menlo,monospace;}
+  .kpi .l{color:#6b7280;font-size:1em;margin-top:2%;}
+  .kpi.alert{border-color:var(--note);}
+  .kpi.alert .n{color:var(--note);}
+  .today{
+    flex:1;border:1.5px solid var(--line);border-radius:10px;padding:3.5% 4.5%;
+  }
+  .today .t{font-weight:700;margin-bottom:3%;font-size:1.1em;}
+  .trow{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:2.4% 0;border-bottom:1px solid var(--fill-dark);
+  }
+  .trow:last-child{border-bottom:none;}
+  .trow .lot{font-family:ui-monospace,Menlo,monospace;font-weight:600;}
+  .mini-btn{
+    border:1.5px solid var(--ink);border-radius:6px;
+    padding:1.6% 4.5%;font-size:.95em;font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<h1>제조자 콘솔 와이어프레임</h1>
+<p class="sub">아이패드 미니 · 가로 모드(1133×744pt) · 로우파이 — 레이아웃 구조 검증용</p>
+
+<!-- ============ 1. 글로벌 프레임 + 배치 상세 ============ -->
+<p class="section-title">① 배치 상세 — 핵심 작업 공간</p>
+<p class="section-desc">아이콘 레일 + 리스트/상세 스플릿뷰. 공정·편차·요약·결과는 별도 화면이 아니라 배치 상세 안의 탭 4개.</p>
+
+<div class="ipad-wrap">
+  <div class="ipad">
+    <!-- rail -->
+    <div class="rail">
+      <div class="rail-item">홈</div>
+      <div class="rail-item badge">의뢰</div>
+      <div class="rail-item active">배치</div>
+      <div class="rail-item">편차</div>
+      <div class="rail-item">장비</div>
+    </div>
+    <!-- list -->
+    <div class="list">
+      <div class="list-head">배치 <span style="font-size:.75em;color:#9aa1ab;">7건</span></div>
+      <div class="filter">
+        <div class="chip on">진행중</div>
+        <div class="chip">대기</div>
+        <div class="chip">완료</div>
+      </div>
+      <div class="card sel">
+        <div class="row"><span class="lot">LOT-2607-03</span><span class="badge-st">진행중</span></div>
+        <div class="meta">PBS 1X · 김의뢰</div>
+      </div>
+      <div class="card">
+        <div class="row"><span class="lot">LOT-2607-02</span><span class="badge-st warn">편차 1</span></div>
+        <div class="meta">Tris-HCl · 이연구</div>
+      </div>
+      <div class="card">
+        <div class="row"><span class="lot">LOT-2607-01</span><span class="badge-st">준비중</span></div>
+        <div class="meta">TAE 50X · 박실험</div>
+      </div>
+    </div>
+    <!-- detail -->
+    <div class="detail">
+      <div class="d-head">
+        <div class="top">
+          <span class="lot">LOT-2607-03</span>
+          <span class="badge-st">진행중</span>
+        </div>
+        <div class="target">PBS 1X · pH 7.4 · 500 mL</div>
+      </div>
+      <div class="tabs">
+        <div class="tab on">공정</div>
+        <div class="tab">편차 (0)</div>
+        <div class="tab lock">요약 🔒</div>
+        <div class="tab lock">결과 🔒</div>
+      </div>
+      <div class="d-body">
+        <div class="step done"><div class="dot done">✓</div><div class="name">1. 시약 칭량</div><div class="time">14:02</div></div>
+        <div class="step done"><div class="dot done">✓</div><div class="name">2. 용해</div><div class="time">14:15</div></div>
+        <div class="step"><div class="dot now">●</div><div class="name"><b>3. pH 조정</b></div><div class="time">진행중</div></div>
+        <div class="now-box">
+          <div class="fields">
+            <div class="field">측정 pH 입력</div>
+            <div class="field">메모 (선택)</div>
+          </div>
+          <div class="actions">
+            <div class="btn primary">단계 완료</div>
+            <div class="btn ghost">편차 등록</div>
+          </div>
+        </div>
+        <div class="step"><div class="dot"></div><div class="name" style="color:#9aa1ab;">4. 여과</div></div>
+        <div class="step"><div class="dot"></div><div class="name" style="color:#9aa1ab;">5. QC 측정</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="ann">
+  <li><b>레일(좌측)</b> — 5개 항목 고정. 의뢰함에 미처리 건수 배지. 폭 최소화로 콘텐츠 영역 확보.</li>
+  <li><b>탭 잠금</b> — 워크플로우 상태 반영: 공정 완료 전엔 요약·결과 탭 비활성(🔒). 순서 강제로 데이터 무결성 확보.</li>
+  <li><b>현재 단계 박스</b> — 진행 중 단계에만 입력 필드 + 액션 노출. "편차 등록" 버튼이 공정 흐름 안에 인라인으로 존재 → 편차 발생 시 화면 이탈 없음.</li>
+  <li>LOT 번호·수치는 모노스페이스(기획서 4번 디자인 방향 반영).</li>
+</ul>
+
+<!-- ============ 2. 대시보드 ============ -->
+<p class="section-title">② 대시보드 — 오늘의 작업 큐</p>
+<p class="section-desc">출근 후 첫 화면. "지금 뭘 처리해야 하는가"에만 답한다. 각 행 탭 → 해당 작업 공간으로 바로 이동.</p>
+
+<div class="ipad-wrap">
+  <div class="ipad">
+    <div class="rail">
+      <div class="rail-item active">홈</div>
+      <div class="rail-item badge">의뢰</div>
+      <div class="rail-item">배치</div>
+      <div class="rail-item">편차</div>
+      <div class="rail-item">장비</div>
+    </div>
+    <div class="detail">
+      <div class="d-head">
+        <div class="top"><span class="lot" style="font-family:inherit;">7월 20일 (월)</span></div>
+        <div class="target" style="font-family:inherit;">오전 9:41 · 최제조</div>
+      </div>
+      <div class="dash-body">
+        <div class="kpis">
+          <div class="kpi"><div class="n">3</div><div class="l">신규 의뢰 대기</div></div>
+          <div class="kpi"><div class="n">2</div><div class="l">진행중 배치</div></div>
+          <div class="kpi alert"><div class="n">1</div><div class="l">미해결 편차</div></div>
+        </div>
+        <div class="today">
+          <div class="t">처리 필요</div>
+          <div class="trow">
+            <span><span class="lot">REQ-045</span> &nbsp;새 의뢰 · PBS 1X</span>
+            <span class="mini-btn">검토</span>
+          </div>
+          <div class="trow">
+            <span><span class="lot">LOT-2607-02</span> &nbsp;편차 미해결 · pH 이탈</span>
+            <span class="mini-btn">조치</span>
+          </div>
+          <div class="trow">
+            <span><span class="lot">LOT-2607-03</span> &nbsp;공정 3단계 진행중</span>
+            <span class="mini-btn">계속</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="ann">
+  <li><b>KPI 3개 고정</b> — 기획서 8번 대시보드 스펙 그대로: 신규의뢰 대기 / 진행중 배치 / 미해결 편차. 편차만 경고색.</li>
+  <li><b>"처리 필요" 리스트</b> — 유형 혼합(의뢰·편차·공정)이지만 긴급도 순 정렬. 대시보드는 조회용이 아니라 작업 진입점.</li>
+</ul>
+
+<!-- ============ 3. 의뢰함 ============ -->
+<p class="section-title">③ 신규·재의뢰함 — 수락/반려</p>
+<p class="section-desc">같은 스플릿뷰 프레임 재사용. 우측 상세에서 레시피 확인 후 수락 또는 반려(사유 필수).</p>
+
+<div class="ipad-wrap">
+  <div class="ipad">
+    <div class="rail">
+      <div class="rail-item">홈</div>
+      <div class="rail-item active badge">의뢰</div>
+      <div class="rail-item">배치</div>
+      <div class="rail-item">편차</div>
+      <div class="rail-item">장비</div>
+    </div>
+    <div class="list">
+      <div class="list-head">의뢰함 <span style="font-size:.75em;color:#9aa1ab;">3건</span></div>
+      <div class="filter">
+        <div class="chip on">신규</div>
+        <div class="chip">재의뢰</div>
+        <div class="chip">처리됨</div>
+      </div>
+      <div class="card sel">
+        <div class="row"><span class="lot">REQ-045</span><span class="badge-st">신규</span></div>
+        <div class="meta">PBS 1X · 김의뢰 · 10분 전</div>
+      </div>
+      <div class="card">
+        <div class="row"><span class="lot">REQ-044</span><span class="badge-st warn">재의뢰</span></div>
+        <div class="meta">Tris-HCl · 이연구 · 어제</div>
+      </div>
+      <div class="card">
+        <div class="row"><span class="lot">REQ-043</span><span class="badge-st">신규</span></div>
+        <div class="meta">TAE 50X · 박실험 · 어제</div>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="d-head">
+        <div class="top"><span class="lot">REQ-045</span><span class="badge-st">신규</span></div>
+        <div class="target">PBS 1X · pH 7.4 · 500 mL · 희망일 7/22</div>
+      </div>
+      <div class="d-body" style="display:flex;flex-direction:column;">
+        <div style="flex:1;border:1.5px solid var(--line);border-radius:10px;padding:3.5% 4.5%;margin-bottom:3.5%;">
+          <div style="font-weight:700;margin-bottom:3%;">레시피 / 요청 사항</div>
+          <div style="color:#9aa1ab;line-height:1.9;">
+            NaCl 8.0 g · KCl 0.2 g · Na₂HPO₄ 1.44 g …<br>
+            멸균 여과 필요 · 4°C 보관<br>
+            <span style="font-size:.9em;">의뢰자 메모: "지난번보다 pH 허용범위 좁게 부탁드립니다"</span>
+          </div>
+        </div>
+        <div class="actions" style="gap:2.5%;">
+          <div class="btn primary" style="flex:2;">수락 → 배치 생성</div>
+          <div class="btn ghost" style="flex:1;">반려 (사유 입력)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="ann">
+  <li><b>수락 = 배치 생성</b> — 수락 버튼이 곧 LOT 번호 발급 + 배치 목록으로 전환. 별도 "배치 만들기" 단계 없음.</li>
+  <li><b>재의뢰 구분</b> — 재의뢰 건은 경고색 배지 + 이전 반려 사유/의뢰자 코멘트가 상세에 함께 노출(상태 플로우 6번 반영).</li>
+  <li>반려는 사유 입력 모달 필수 → 의뢰자 포털의 코멘트 스레드로 전달.</li>
+</ul>
+
+</body>
+</html>

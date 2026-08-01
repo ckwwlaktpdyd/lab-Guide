@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디자인 토큰 시트 — Lab Guide MVP</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/1.0.6/css/jetbrains-mono.min.css">
+<style>
+  :root{
+    --ink:#17272B;
+    --ink-soft:#5C6B70;
+    --line:#D4DCDD;
+    --surface:#FFFFFF;
+    --paper:#FAFAF8;
+    --bench:#EEF2F2;
+    --amber:#F0A62E;
+    --green:#3AA05F;
+    --teal:#0E8290;
+    --pink:#E14E68;
+    --ink-dim:#A7B0B2;
+    --ring-teal:0 0 0 3px rgba(14,130,144,.08);
+    --ring-focus:0 0 0 3px rgba(14,130,144,.20);
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Pretendard Variable',Pretendard,-apple-system,sans-serif;
+    background:var(--paper);color:var(--ink);
+    padding:28px 18px 70px;max-width:720px;margin:0 auto;
+    font-variant-numeric:tabular-nums;
+  }
+  h1{font-size:24px;font-weight:800;}
+  .sub{font-size:13px;color:var(--ink-soft);margin:6px 0 8px;}
+  .grad-strip{
+    height:6px;border-radius:3px;margin:14px 0 34px;
+    background:linear-gradient(90deg,var(--amber),var(--green),var(--teal));
+  }
+  h2{font-size:16px;font-weight:700;margin:38px 0 6px;}
+  .h2-desc{font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;line-height:1.55;}
+
+  /* palette */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .sw{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);}
+  .sw .chip{height:56px;}
+  .sw .info{padding:10px 12px;}
+  .sw .name{font-weight:700;font-size:13px;}
+  .sw .hex{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+  .sw .use{font-size:11.5px;color:var(--ink-soft);margin-top:3px;}
+
+  /* type */
+  .type-card{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:20px 22px;}
+  .t-row{display:flex;align-items:baseline;gap:14px;padding:10px 0;border-bottom:1px solid var(--bench);}
+  .t-row:last-child{border-bottom:none;}
+  .t-spec{font-family:var(--mono);font-size:11px;color:var(--ink-soft);width:118px;flex-shrink:0;}
+
+  /* components */
+  .skin{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+  .skin-label{
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    padding:8px 16px;border-bottom:1px solid var(--line);
+    color:var(--ink-soft);background:var(--surface);
+  }
+  .skin-body{padding:22px;}
+  .client-skin .skin-body{background:var(--paper);}
+  .mfr-skin .skin-body{background:var(--bench);}
+
+  .badge{
+    display:inline-block;border-radius:6px;padding:3px 10px;
+    font-size:12.5px;font-weight:600;margin-right:6px;
+  }
+  .b-wait{background:rgba(240,166,46,.15);color:#A96C0F;}
+  .b-run{background:rgba(14,130,144,.12);color:var(--teal);}
+  .b-done{background:rgba(58,160,95,.14);color:#2C7F4B;}
+  .b-dev{background:var(--pink);color:#fff;}
+  .b-re{background:rgba(240,166,46,.16);color:#A96C0F;border:1px dashed rgba(240,166,46,.6);}
+  .b-inst{
+    background:rgba(14,130,144,.1);color:var(--teal);
+    font-family:var(--mono);font-weight:400;font-size:11.5px;
+  }
+
+  .demo-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin-top:14px;
+  }
+  .mfr-skin .demo-card{padding:14px 16px;}
+  .lot{font-family:var(--mono);font-weight:700;}
+  .meta{font-size:12.5px;color:var(--ink-soft);margin-top:4px;}
+
+  .btn{
+    display:inline-block;border-radius:8px;padding:10px 20px;
+    font-weight:700;font-size:14px;border:1px solid var(--ink);
+    margin-right:8px;margin-top:14px;
+  }
+  .btn.pr{background:var(--ink);color:#fff;}
+  .btn.ap{background:var(--green);border-color:var(--green);color:#fff;}
+  .btn.gh{background:var(--surface);color:var(--ink);border-color:var(--line);}
+  .btn.dev{background:var(--surface);color:var(--pink);border-color:rgba(225,78,104,.45);}
+
+  /* selection / focus — 그림자가 아니라 ring */
+  .is-selected{border:1.5px solid var(--teal);box-shadow:var(--ring-teal);}
+  .ico{width:1em;height:1em;vertical-align:-.125em;flex-shrink:0;}
+
+  /* signature stepper */
+  .ph-stepper{display:flex;align-items:center;gap:4px;margin-top:16px;}
+  .ph-seg{flex:1;height:5px;border-radius:3px;background:var(--line);}
+  .ph-seg.f1{background:var(--amber);}
+  .ph-seg.f2{background:linear-gradient(90deg,var(--amber),var(--green));}
+  .ph-seg.f3{background:linear-gradient(90deg,var(--green),var(--teal));}
+  .ph-dot{
+    width:13px;height:13px;border-radius:50%;
+    background:var(--teal);outline:3px solid rgba(14,130,144,.2);
+  }
+  .steplab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-top:6px;}
+
+  .data-line{font-family:var(--mono);font-size:14px;line-height:2;color:var(--ink);}
+  .data-line .dim{color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<h1>디자인 토큰 시트</h1>
+<p class="sub">Lab Guide MVP · Pretendard Variable + JetBrains Mono · pH 지시약 스펙트럼 팔레트</p>
+<div class="grad-strip"></div>
+
+<h2>컬러 — 지시약 스펙트럼</h2>
+<p class="h2-desc">BTB 지시약의 산성(노랑)→중성(초록)→염기(청록) 변색과 페놀프탈레인(핑크)에서 유래. 브랜드 컬러가 곧 상태 컬러.</p>
+<div class="swatches">
+  <div class="sw"><div class="chip" style="background:var(--amber)"></div><div class="info"><div class="name">indicator-amber</div><div class="hex">#F0A62E</div><div class="use">대기 · 주의</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--green)"></div><div class="info"><div class="name">indicator-green</div><div class="hex">#3AA05F</div><div class="use">완료 · 서명</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--teal)"></div><div class="info"><div class="name">indicator-teal</div><div class="hex">#0E8290</div><div class="use">진행중 · 프라이머리</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--pink)"></div><div class="info"><div class="name">phenol-pink</div><div class="hex">#E14E68</div><div class="use">편차 · 반려</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--ink)"></div><div class="info"><div class="name">ink</div><div class="hex">#17272B</div><div class="use">텍스트 · 주 버튼</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--ink-soft)"></div><div class="info"><div class="name">ink-soft</div><div class="hex">#5C6B70</div><div class="use">보조 텍스트</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--ink-dim)"></div><div class="info"><div class="name">ink-dim</div><div class="hex">#A7B0B2</div><div class="use">비활성 · 잠김 · placeholder</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--line)"></div><div class="info"><div class="name">line</div><div class="hex">#D4DCDD</div><div class="use">보더</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--paper);border-bottom:1px solid var(--line)"></div><div class="info"><div class="name">paper</div><div class="hex">#FAFAF8</div><div class="use">의뢰자 포털 배경</div></div></div>
+  <div class="sw"><div class="chip" style="background:var(--bench);border-bottom:1px solid var(--line)"></div><div class="info"><div class="name">bench</div><div class="hex">#EEF2F2</div><div class="use">제조자 콘솔 배경</div></div></div>
+</div>
+
+<h2>타이포그래피</h2>
+<p class="h2-desc">UI는 Pretendard Variable, 데이터(LOT·측정값·타임스탬프)는 JetBrains Mono. 숫자는 tabular-nums.</p>
+<div class="type-card">
+  <div class="t-row"><span class="t-spec">display 26/800</span><span style="font-size:26px;font-weight:800;">결과가 도착했습니다</span></div>
+  <div class="t-row"><span class="t-spec">title 19/700</span><span style="font-size:19px;font-weight:700;">배치 요약</span></div>
+  <div class="t-row"><span class="t-spec">body 15/400</span><span style="font-size:15px;">멸균 여과 후 4°C에서 보관했습니다.</span></div>
+  <div class="t-row"><span class="t-spec">caption 12.5/400</span><span style="font-size:12.5px;color:var(--ink-soft);">7월 20일 16:40 · 최제조</span></div>
+  <div class="t-row"><span class="t-spec">data / JB Mono</span><span class="lot" style="font-size:15px;">LOT-2607-03 · pH 7.41 · 500 mL</span></div>
+</div>
+
+<h2>시그니처 — pH 그라디언트 진행 표시</h2>
+<p class="h2-desc">"적정이 진행될수록 색이 변한다." 스테퍼·타임라인·프로그레스에만 사용하는 유일한 장식 요소. 나머지는 절제.</p>
+<div class="type-card">
+  <div class="ph-stepper">
+    <div class="ph-seg f1"></div>
+    <div class="ph-seg f2"></div>
+    <div class="ph-seg f3"></div>
+    <div class="ph-dot"></div>
+    <div class="ph-seg"></div>
+  </div>
+  <div class="steplab"><span>의뢰</span><span>수락</span><span>공정</span><span>검토</span><span>완료</span></div>
+</div>
+
+<h2>스킨 A — 의뢰자 포털 <span style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);">paper · 여백 24px</span></h2>
+<div class="skin client-skin">
+  <div class="skin-label">CLIENT PORTAL / paper #FAFAF8</div>
+  <div class="skin-body">
+    <span class="badge b-run">진행중</span>
+    <span class="badge b-done">리뷰 완료</span>
+    <span class="badge b-wait">수락 대기</span>
+    <span class="badge b-re"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> 재제조</span>
+    <div class="demo-card">
+      <div style="font-size:19px;font-weight:700;">PBS 1X <span class="lot" style="font-size:13px;color:var(--ink-soft);font-weight:400;">REQ-042</span></div>
+      <div class="meta">7월 20일 의뢰 · <span class="lot" style="font-weight:400;">LOT-2607-03</span></div>
+      <div class="data-line" style="margin-top:12px;">
+        pH <b>7.41</b> <span class="dim">(목표 7.40)</span><br>
+        <span class="badge b-inst"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> pH-2000-A 자동 기록 16:32</span>
+      </div>
+      <div>
+        <span class="btn ap">리뷰 완료 · 서명</span>
+        <span class="btn gh">보완 요청</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>스킨 B — 제조자 콘솔 <span style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);">bench · 여백 16px · 터치 44pt</span></h2>
+<div class="skin mfr-skin">
+  <div class="skin-label">MANUFACTURER CONSOLE / bench #EEF2F2</div>
+  <div class="skin-body">
+    <span class="badge b-dev">편차 1</span>
+    <span class="badge b-run">진행중</span>
+    <div class="demo-card">
+      <div class="lot" style="font-size:16px;">LOT-2607-02 <span class="badge b-dev" style="font-family:'Pretendard Variable';font-size:11.5px;vertical-align:2px;">편차</span></div>
+      <div class="meta">Tris-HCl 1M · 4단계 pH 조정</div>
+      <div class="data-line" style="margin-top:10px;">
+        측정 pH <b style="color:var(--pink);">8.12</b> <span class="dim">(허용 7.95–8.05)</span>
+      </div>
+      <div>
+        <span class="btn ap">단계 완료</span>
+        <span class="btn dev">편차 등록</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>아이콘</h2>
+<p class="h2-desc">이모지를 아이콘으로 쓰지 않는다 — OS별 렌더링이 제각각이고 <code>currentColor</code>로 색을 물려받지 못해 배지 안에서 baseline이 흔들린다. 인라인 SVG(Lucide 계열, 1.5–2px stroke, <code>currentColor</code>)로 통일한다.</p>
+<div class="type-card">
+  <div class="t-row"><span class="t-spec">zap</span><span><span class="badge b-inst"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> 계측기 자동 기록</span> &nbsp;<span style="font-size:12.5px;color:var(--ink-soft);">← ⚡ 대체</span></span></div>
+  <div class="t-row"><span class="t-spec">rotate-ccw</span><span><span class="badge b-re"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> 재제조</span> &nbsp;<span style="font-size:12.5px;color:var(--ink-soft);">← ↻ 대체</span></span></div>
+  <div class="t-row"><span class="t-spec">lock</span><span style="color:var(--ink-dim);"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 결과 <span style="font-size:12.5px;">← 🔒 대체 · 잠긴 탭</span></span></div>
+</div>
+
+<h2>확정 규칙</h2>
+<div class="type-card">
+  <div class="t-row"><span class="t-spec">보더</span><span style="font-size:14px;">기본 <b>1px</b> <span style="color:var(--ink-soft);">line</span> · 선택/강조 <b>1.5px</b> <span style="color:var(--teal);">teal</span> + ring</span></div>
+  <div class="t-row"><span class="t-spec">그림자</span><span style="font-size:14px;">없음. 선택·포커스는 <b>ring 토큰</b>으로만 — <span class="lot" style="font-size:12.5px;">0 0 0 3px rgba(14,130,144,.08)</span></span></div>
+  <div class="t-row"><span class="t-spec">그라디언트</span><span style="font-size:14px;">진행률 표현(스테퍼·타임라인) <b>+ 브랜드 마크(로고·아바타)</b>만. 그 외 배경 그라디언트 금지</span></div>
+  <div class="t-row"><span class="t-spec">green 버튼</span><span style="font-size:14px;"><b>서명 · 단계 완료</b> 액션만. 그 외 주 버튼은 ink, 보조는 outline</span></div>
+  <div class="t-row"><span class="t-spec">라운드</span><span style="font-size:14px;">카드 12 · 버튼/입력 8 · 배지 6 · 칩 999</span></div>
+  <div class="t-row"><span class="t-spec">용어</span><span style="font-size:14px;">"승인" 사용 금지 → 제조자 <b>1차 검토(서명)</b> / 의뢰자 <b>결과 리뷰(서명)</b></span></div>
+</div>
+
+<p class="h2-desc" style="margin-top:26px;">그림자 없음(플랫) — 계층은 1px 보더와 배경 대비로.</p>
+
+</body>
+</html>

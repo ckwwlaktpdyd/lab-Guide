@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>의뢰자 포털 — 토큰 적용 시안</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/1.0.6/css/jetbrains-mono.min.css">
+<style>
+  :root{
+    --ink:#17272B; --ink-soft:#5C6B70; --line:#D4DCDD;
+    --surface:#FFFFFF; --paper:#FAFAF8; --bench:#EEF2F2;
+    --amber:#F0A62E; --green:#3AA05F; --teal:#0E8290; --pink:#E14E68;
+    --ink-dim:#A7B0B2;
+    --ring-teal:0 0 0 3px rgba(14,130,144,.08);
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Pretendard Variable',Pretendard,-apple-system,sans-serif;
+    background:#EDEEEA;color:var(--ink);
+    padding:26px 16px 70px;font-variant-numeric:tabular-nums;
+  }
+  .head{max-width:700px;margin:0 auto 8px;}
+  h1{font-size:22px;font-weight:800;}
+  .sub{font-size:13px;color:var(--ink-soft);margin-top:5px;}
+  .grad-strip{
+    max-width:700px;margin:14px auto 30px;height:5px;border-radius:3px;
+    background:linear-gradient(90deg,var(--amber),var(--green),var(--teal));
+  }
+  .sec-t{max-width:700px;margin:34px auto 4px;font-size:15px;font-weight:700;}
+  .sec-d{max-width:700px;margin:0 auto 12px;font-size:12.5px;color:var(--ink-soft);line-height:1.55;}
+
+  .frame-wrap{width:100%;max-width:700px;margin:0 auto;}
+  .desktop{
+    aspect-ratio:1440/900;background:var(--paper);
+    border:1px solid var(--line);border-radius:12px;
+    display:flex;flex-direction:column;overflow:hidden;
+    font-size:clamp(6px,1.6vw,11.2px);
+    box-shadow:0 1px 3px rgba(23,39,43,.06);
+  }
+  .mono{font-family:var(--mono);}
+
+  /* nav */
+  .nav{
+    display:flex;align-items:center;gap:3.2%;
+    padding:1.7% 3.5%;border-bottom:1px solid var(--line);
+    background:var(--surface);
+  }
+  .logo{font-weight:800;letter-spacing:-.01em;font-size:1.2em;}
+  .logo .dot{color:var(--teal);}
+  .nav .item{color:var(--ink-soft);}
+  .nav .item.on{color:var(--ink);font-weight:700;position:relative;}
+  .nav .item.on::after{
+    content:"";position:absolute;left:0;right:0;bottom:-.55em;height:2px;
+    background:var(--teal);border-radius:2px;
+  }
+  .nav .spacer{flex:1;}
+  .nav .cta{
+    background:var(--ink);color:#fff;border-radius:8px;
+    padding:1.1% 2.8%;font-weight:700;
+  }
+  .avatar{
+    width:2.6%;aspect-ratio:1;min-width:18px;border-radius:50%;
+    background:linear-gradient(135deg,var(--teal),var(--green));
+  }
+
+  .page{flex:1;padding:3% 6% 0;overflow:hidden;}
+  .page.wide{padding:2.6% 3.6% 0;}
+  .h2{font-size:1.85em;font-weight:800;letter-spacing:-.01em;}
+  .desc{color:var(--ink-soft);margin:.5% 0 2.6%;}
+
+  /* badges */
+  .badge{display:inline-block;border-radius:6px;padding:.35em .8em;font-size:.92em;font-weight:600;}
+  .b-wait{background:rgba(240,166,46,.15);color:#A96C0F;}
+  .b-run{background:rgba(14,130,144,.12);color:var(--teal);}
+  .b-done{background:rgba(58,160,95,.14);color:#2C7F4B;}
+  .b-dev{background:var(--pink);color:#fff;}
+  .b-re{background:rgba(240,166,46,.16);color:#A96C0F;border:1px dashed rgba(240,166,46,.6);}
+  .ico{width:1em;height:1em;vertical-align:-.125em;}
+  .b-inst{
+    background:rgba(14,130,144,.1);color:var(--teal);
+    font-family:var(--mono);font-weight:400;font-size:.88em;
+    border-radius:6px;padding:.3em .7em;display:inline-block;
+  }
+
+  /* dashboard cards */
+  .req-grid{display:flex;flex-direction:column;gap:1.7%;}
+  .req-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:2.3% 3%;display:flex;align-items:center;gap:3%;
+  }
+  .req-card.act{border:1.5px solid var(--teal);box-shadow:0 0 0 3px rgba(14,130,144,.08);}
+  .req-card .info{flex:1;}
+  .req-card .name{font-weight:700;font-size:1.2em;}
+  .req-card .rid{font-family:var(--mono);font-weight:400;font-size:.82em;color:var(--ink-soft);}
+  .req-card .meta{color:var(--ink-soft);font-size:.95em;margin-top:.7%;}
+
+  /* signature gradient stepper */
+  .stepper{display:flex;align-items:center;gap:2px;width:30%;}
+  .seg{flex:1;height:4px;border-radius:2px;background:var(--line);}
+  .seg.s1{background:var(--amber);}
+  .seg.s2{background:linear-gradient(90deg,var(--amber),var(--green));}
+  .seg.s3{background:linear-gradient(90deg,var(--green),var(--teal));}
+  .knob{
+    width:9px;height:9px;border-radius:50%;background:var(--teal);
+    outline:2.5px solid rgba(14,130,144,.2);flex-shrink:0;
+  }
+  .knob.amber{background:var(--amber);outline-color:rgba(240,166,46,.22);}
+  .st-label{font-size:.95em;font-weight:600;white-space:nowrap;width:15%;text-align:right;}
+  .st-label.act{color:var(--teal);}
+  .st-label.dim{color:var(--ink-soft);font-weight:400;}
+
+  /* form */
+  .form-col{max-width:60%;display:flex;flex-direction:column;gap:2%;}
+  .f-label{font-weight:700;margin-bottom:.7%;}
+  .f-input{
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:1.7% 2.5%;color:var(--ink-dim);
+  }
+  .f-input.filled{color:var(--ink);font-family:var(--mono);}
+  .f-input.focus{border:1.5px solid var(--teal);box-shadow:0 0 0 3px rgba(14,130,144,.1);color:var(--ink);}
+  .f-row{display:flex;gap:2.5%;}
+  .f-row > div{flex:1;}
+  .bar{display:flex;justify-content:flex-end;gap:1.6%;margin-top:1.4%;}
+  .btn{border-radius:8px;padding:1.4% 3.6%;font-weight:700;text-align:center;font-size:1.02em;}
+  .btn.pr{background:var(--ink);color:#fff;}
+  .btn.ap{background:var(--green);color:#fff;}
+  .btn.gh{background:var(--surface);color:var(--ink);border:1px solid var(--line);}
+
+  /* detail */
+  .dgrid{display:flex;gap:3.4%;height:100%;}
+  .tl-col{flex:1.35;}
+  .side{flex:1;display:flex;flex-direction:column;gap:2.6%;}
+  .hero{
+    border-radius:12px;padding:3.2% 4%;margin-bottom:3.2%;
+    background:rgba(14,130,144,.05);
+    border:1px solid rgba(14,130,144,.22);
+  }
+  .hero .big{font-size:1.55em;font-weight:800;letter-spacing:-.01em;}
+  .hero .s2{color:var(--ink-soft);margin-top:1.1%;}
+  .tl{position:relative;padding-left:5.5%;}
+  .tl::before{
+    content:"";position:absolute;left:1.9%;top:1.2%;height:64%;width:2px;
+    background:linear-gradient(180deg,var(--amber),var(--green) 55%,var(--teal));
+    border-radius:2px;
+  }
+  .tl::after{
+    content:"";position:absolute;left:1.9%;top:66%;bottom:3%;width:2px;
+    background:var(--line);border-radius:2px;
+  }
+  .ti{position:relative;padding-bottom:4.2%;}
+  .ti::before{
+    content:"";position:absolute;left:-4.6%;top:.35em;
+    width:2.3%;aspect-ratio:1;border-radius:50%;
+    background:var(--green);border:2px solid var(--paper);
+  }
+  .ti.first::before{background:var(--amber);}
+  .ti.now::before{background:var(--teal);outline:2.5px solid rgba(14,130,144,.22);}
+  .ti.dim::before{background:var(--line);}
+  .ti .t{font-weight:700;}
+  .ti.dim .t{color:var(--ink-dim);font-weight:400;}
+  .ti .d{color:var(--ink-soft);font-size:.95em;margin-top:.5%;}
+  .ti .lnk{color:var(--teal);font-weight:600;}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3.2% 4.2%;}
+  .pt{font-weight:700;margin-bottom:2.6%;}
+  .pt .dimw{color:var(--ink-soft);font-weight:400;font-size:.92em;}
+  .dl{font-family:var(--mono);line-height:1.95;color:var(--ink-soft);}
+  .dl b{color:var(--ink);}
+  .cmt{background:var(--bench);border-radius:8px;padding:2.6% 3.4%;font-size:.95em;margin-bottom:1.8%;}
+  .cmt .who{font-weight:700;color:var(--ink);}
+  .approve{
+    background:var(--surface);border:1.5px solid var(--teal);border-radius:12px;
+    padding:3.4% 4.2%;box-shadow:0 0 0 3px rgba(14,130,144,.07);
+  }
+
+  /* mobile */
+  .mob-wrap{max-width:700px;margin:0 auto;}
+  .mobile{
+    width:216px;aspect-ratio:390/780;background:var(--paper);
+    border:1px solid var(--line);border-radius:20px;overflow:hidden;
+    display:flex;flex-direction:column;font-size:7.4px;margin:0 auto;
+    box-shadow:0 1px 3px rgba(23,39,43,.06);
+  }
+  .m-nav{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:5.5% 6%;border-bottom:1px solid var(--line);
+    background:var(--surface);font-weight:700;
+  }
+  .m-body{flex:1;padding:5.5% 6%;overflow:hidden;}
+  .m-foot{
+    border-top:1px solid var(--line);padding:4.5% 6%;
+    display:flex;gap:3%;background:var(--surface);
+  }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>의뢰자 포털 — 토큰 적용 시안</h1>
+  <p class="sub">Pretendard Variable + JetBrains Mono · pH 지시약 팔레트 · paper 배경 / 넉넉한 여백 스킨</p>
+</div>
+<div class="grad-strip"></div>
+
+<!-- 1. 대시보드 -->
+<p class="sec-t">① 대시보드</p>
+<p class="sec-d">진행 단계를 amber→green→teal 그라디언트 스테퍼로 표현. 액션 필요 건은 teal 포커스 링으로 강조.</p>
+
+<div class="frame-wrap">
+  <div class="desktop">
+    <div class="nav">
+      <span class="logo">LAB GUIDE<span class="dot">.</span></span>
+      <span class="item on">내 의뢰</span>
+      <span class="item">캘린더</span>
+      <span class="item">준비 가이드</span>
+      <span class="spacer"></span>
+      <span class="cta">+ 새 의뢰</span>
+      <span class="avatar"></span>
+    </div>
+    <div class="page">
+      <div class="h2">내 의뢰</div>
+      <div class="desc">진행중 3건 · 완료 12건</div>
+      <div class="req-grid">
+        <div class="req-card act">
+          <div class="info">
+            <div class="name">PBS 1X <span class="rid">REQ-042</span></div>
+            <div class="meta">7월 20일 의뢰 · <span class="mono">LOT-2607-03</span></div>
+          </div>
+          <div class="stepper">
+            <div class="seg s1"></div><div class="seg s2"></div><div class="seg s3"></div>
+            <div class="knob"></div><div class="seg"></div>
+          </div>
+          <div class="st-label act">리뷰 필요 →</div>
+        </div>
+        <div class="req-card">
+          <div class="info">
+            <div class="name">Tris-HCl 1M <span class="rid">REQ-041</span></div>
+            <div class="meta">7월 19일 의뢰 · <span class="mono">LOT-2607-02</span> · <span class="badge b-dev" style="font-size:.85em;">편차 1</span></div>
+          </div>
+          <div class="stepper">
+            <div class="seg s1"></div><div class="seg s2"></div><div class="knob"></div>
+            <div class="seg"></div><div class="seg"></div>
+          </div>
+          <div class="st-label dim">공정 진행중</div>
+        </div>
+        <div class="req-card">
+          <div class="info">
+            <div class="name">TAE 50X <span class="rid">REQ-046</span>
+              <span class="badge b-re" style="font-size:.8em;"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> 재제조</span>
+            </div>
+            <div class="meta">7월 20일 재제조 요청 · 원본 <span class="mono">LOT-2607-01</span></div>
+          </div>
+          <div class="stepper">
+            <div class="knob amber"></div><div class="seg"></div><div class="seg"></div>
+            <div class="seg"></div><div class="seg"></div>
+          </div>
+          <div class="st-label dim">수락 대기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. 새 의뢰 -->
+<p class="sec-t">② 새 의뢰</p>
+<p class="sec-d">레시피 선택 시 타겟 파라미터 자동 채움. 수치 입력은 모노스페이스, 포커스는 teal 링.</p>
+
+<div class="frame-wrap">
+  <div class="desktop">
+    <div class="nav">
+      <span class="logo">LAB GUIDE<span class="dot">.</span></span>
+      <span class="item">내 의뢰</span><span class="item">캘린더</span><span class="item">준비 가이드</span>
+      <span class="spacer"></span><span class="avatar"></span>
+    </div>
+    <div class="page">
+      <div class="h2">새 의뢰</div>
+      <div class="desc">레시피를 선택하면 기본값이 채워집니다</div>
+      <div class="form-col">
+        <div>
+          <div class="f-label">버퍼 레시피</div>
+          <div class="f-input focus">PBS 1X &nbsp;▾</div>
+        </div>
+        <div class="f-row">
+          <div><div class="f-label">목표 pH</div><div class="f-input filled">7.40</div></div>
+          <div><div class="f-label">부피</div><div class="f-input filled">500 mL</div></div>
+        </div>
+        <div>
+          <div class="f-label">희망 완료 일시</div>
+          <div class="f-row">
+            <div class="f-input filled">2026-07-22 &nbsp;▾</div>
+            <div class="f-input filled">14:00 &nbsp;▾</div>
+          </div>
+          <div style="color:var(--ink-soft);font-size:.92em;margin-top:.9%;">버퍼 사용 시점에 맞춰 제조 일정이 배정됩니다</div>
+        </div>
+        <div>
+          <div class="f-label">요청 사항 <span style="color:var(--ink-soft);font-weight:400;">(선택)</span></div>
+          <div class="f-input" style="padding-bottom:7%;">멸균 여과 필요, 4°C 보관…</div>
+        </div>
+        <div class="bar">
+          <div class="btn gh">임시 저장</div>
+          <div class="btn pr">의뢰 보내기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. 의뢰 상세 -->
+<p class="sec-t">③ 의뢰 상세 — 상태 스토리텔링 + 결과 리뷰·서명</p>
+<p class="sec-d">타임라인 축이 지시약 그라디언트로 흐르고, 현재 지점만 teal 노브. 의뢰자는 제조 결과를 직접 확인하고 서명한다(수기 기록지 리뷰의 디지털 대응).</p>
+
+<div class="frame-wrap">
+  <div class="desktop">
+    <div class="nav">
+      <span class="logo">LAB GUIDE<span class="dot">.</span></span>
+      <span class="item on">내 의뢰</span><span class="item">캘린더</span><span class="item">준비 가이드</span>
+      <span class="spacer"></span><span class="avatar"></span>
+    </div>
+    <div class="page wide">
+      <div class="dgrid">
+        <div class="tl-col">
+          <div class="hero">
+            <div class="big">제조가 완료되었습니다 — 리뷰를 진행해 주세요</div>
+            <div class="s2">PBS 1X · <span class="mono">LOT-2607-03</span> · 제조자 1차 검토 완료 (최제조, 7/20 16:40)</div>
+          </div>
+          <div class="tl">
+            <div class="ti first"><div class="t">의뢰 접수</div><div class="d mono">7/20 09:12</div></div>
+            <div class="ti"><div class="t">제조자 수락 · 배치 생성</div><div class="d"><span class="mono">7/20 09:45</span> · <span class="mono">LOT-2607-03</span></div></div>
+            <div class="ti"><div class="t">공정 완료 <span style="color:var(--ink-soft);font-weight:400;">(5/5 단계)</span></div><div class="d"><span class="mono">7/20 15:30</span> · 편차 0건</div></div>
+            <div class="ti"><div class="t">배치 요약 확정</div><div class="d"><span class="mono">7/20 16:10</span> · <span class="lnk">요약 보기 →</span></div></div>
+            <div class="ti now"><div class="t">의뢰자 리뷰 대기</div><div class="d">우측 제조 결과를 확인하고 서명해 주세요</div></div>
+            <div class="ti dim"><div class="t">리뷰 완료 · 종결</div></div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="panel">
+            <div class="pt">제조 결과 <span class="dimw">· 제조자 서명 완료</span></div>
+            <div class="dl">
+              pH&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>7.41</b> &nbsp;(목표 7.40)<br>
+              부피&nbsp;&nbsp;&nbsp;<b>500</b> mL<br>
+              전도도&nbsp;<b>15.2</b> mS/cm
+            </div>
+            <div style="margin-top:5%;"><span class="b-inst"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> pH-2000-A 자동 기록 16:32</span></div>
+            <div style="margin-top:5%;color:var(--teal);font-weight:600;">전체 공정 기록 보기 (5단계 · 시약 로트) →</div>
+          </div>
+          <div class="panel">
+            <div class="pt">코멘트</div>
+            <div class="cmt"><span class="who">김의뢰</span> · 지난번보다 pH 허용범위 좁게 부탁드립니다</div>
+            <div class="cmt"><span class="who">최제조</span> · 반영했습니다. ±0.05 이내로 관리했어요</div>
+            <div class="f-input" style="font-size:.95em;">코멘트 입력…</div>
+          </div>
+          <div class="approve">
+            <div class="pt">결과 리뷰</div>
+            <div style="color:var(--ink-soft);font-size:.95em;margin-bottom:4%;">제조 결과를 확인했으며 이상이 없음을 서명합니다</div>
+            <div style="display:flex;gap:3%;">
+              <div class="btn ap" style="flex:2;">리뷰 완료 · 서명</div>
+              <div class="btn gh" style="flex:1.6;">보완 요청</div>
+            </div>
+            <div style="height:1px;background:var(--line);margin:4% 0 3.4%;"></div>
+            <div class="btn gh" style="border-color:rgba(225,78,104,.45);color:var(--pink);text-align:center;"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> 재제조 요청</div>
+            <div style="color:var(--ink-soft);font-size:.9em;margin-top:2.4%;line-height:1.5;">결과 편차·실험 중 문제 발견 시 동일 조건으로 새 배치를 요청합니다</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- mobile -->
+<p class="sec-t">③-b 모바일 변형</p>
+<p class="sec-d">동일 콘텐츠 세로 스택 · 리뷰 서명 액션은 하단 고정 바.</p>
+
+<div class="mob-wrap">
+  <div class="mobile">
+    <div class="m-nav"><span>‹ 내 의뢰</span><span style="color:var(--ink-soft);">⋯</span></div>
+    <div class="m-body">
+      <div class="hero" style="padding:6% 7%;margin-bottom:6%;">
+        <div class="big" style="font-size:1.35em;">제조 완료 — 리뷰를 진행해 주세요</div>
+        <div class="s2">PBS 1X · <span class="mono">LOT-2607-03</span></div>
+      </div>
+      <div class="tl" style="padding-left:9%;">
+        <div class="ti first" style="padding-bottom:7%;"><div class="t">의뢰 접수</div><div class="d mono">7/20 09:12</div></div>
+        <div class="ti" style="padding-bottom:7%;"><div class="t">수락 · 배치 생성</div><div class="d mono">09:45</div></div>
+        <div class="ti" style="padding-bottom:7%;"><div class="t">공정 완료 (5/5)</div><div class="d">편차 0건</div></div>
+        <div class="ti" style="padding-bottom:7%;"><div class="t">요약 확정</div><div class="d lnk">요약 보기 →</div></div>
+        <div class="ti now" style="padding-bottom:7%;"><div class="t">결과 리뷰 대기</div></div>
+      </div>
+      <div class="panel" style="padding:5.5% 7%;">
+        <div class="pt">제조 결과</div>
+        <div class="dl">pH <b>7.41</b> · <b>500</b> mL</div>
+        <div style="margin-top:5%;"><span class="b-inst"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg> pH-2000-A 16:32</span></div>
+        <div style="margin-top:5%;color:var(--teal);font-weight:600;">전체 공정 기록 보기 →</div>
+      </div>
+    </div>
+    <div class="m-foot" style="flex-direction:column;gap:5%;">
+      <div style="display:flex;gap:3%;width:100%;">
+        <div class="btn ap" style="flex:2;padding:3.6% 0;">리뷰 완료 · 서명</div>
+        <div class="btn gh" style="flex:1.2;padding:3.6% 0;">보완 요청</div>
+      </div>
+      <div class="btn gh" style="width:100%;padding:3.2% 0;border-color:rgba(225,78,104,.45);color:var(--pink);"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg> 재제조 요청</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>의뢰자 포털 와이어프레임 — Lab Guide MVP</title>
+<style>
+  :root{
+    --ink:#2b2f36;
+    --line:#c9ced6;
+    --fill:#eef0f3;
+    --fill-dark:#dde1e6;
+    --note:#e05d3d;
+    --done:#8a929c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,"Apple SD Gothic Neo","Pretendard",sans-serif;
+    background:#f7f7f5;color:var(--ink);
+    padding:24px 16px 60px;
+  }
+  h1{font-size:20px;margin-bottom:4px;}
+  .sub{font-size:13px;color:#6b7280;margin-bottom:28px;}
+  .section-title{font-size:15px;font-weight:700;margin:36px 0 4px;}
+  .section-desc{font-size:12.5px;color:#6b7280;margin-bottom:12px;line-height:1.5;}
+  .mono{font-family:ui-monospace,Menlo,monospace;}
+
+  /* desktop frame 1440x900 */
+  .frame-wrap{width:100%;max-width:680px;margin:0 auto;}
+  .desktop{
+    aspect-ratio:1440/900;
+    background:#fff;border:2px solid var(--ink);border-radius:10px;
+    display:flex;flex-direction:column;overflow:hidden;
+    font-size:clamp(6px,1.55vw,11px);
+  }
+
+  /* top nav */
+  .nav{
+    display:flex;align-items:center;gap:3%;
+    padding:1.6% 3.5%;border-bottom:1.5px solid var(--line);
+  }
+  .logo{font-weight:800;letter-spacing:.02em;}
+  .nav .item{color:#6b7280;}
+  .nav .item.on{color:var(--ink);font-weight:700;border-bottom:2px solid var(--ink);padding-bottom:.4%;}
+  .nav .spacer{flex:1;}
+  .nav .cta{
+    background:var(--ink);color:#fff;border-radius:8px;
+    padding:1% 2.6%;font-weight:700;
+  }
+  .avatar{width:2.4%;aspect-ratio:1;min-width:18px;border-radius:50%;background:var(--fill-dark);}
+
+  .page{flex:1;padding:2.8% 6% 0;overflow:hidden;}
+  .page.wide{padding:2.8% 3.5% 0;}
+  .h2{font-size:1.7em;font-weight:800;margin-bottom:.6%;}
+  .h2 + .desc{color:#6b7280;margin-bottom:2.4%;}
+
+  /* dashboard request cards */
+  .req-grid{display:flex;flex-direction:column;gap:2%;}
+  .req-card{
+    border:1.5px solid var(--line);border-radius:12px;
+    padding:2.2% 3%;display:flex;align-items:center;gap:3%;
+  }
+  .req-card .info{flex:1;}
+  .req-card .name{font-weight:700;font-size:1.15em;}
+  .req-card .meta{color:#6b7280;font-size:.95em;margin-top:.8%;}
+  .stepper{display:flex;align-items:center;gap:.6%;width:34%;}
+  .sdot{width:7%;aspect-ratio:1;border-radius:50%;background:var(--fill-dark);}
+  .sdot.done{background:var(--done);}
+  .sdot.now{background:var(--ink);outline:2px solid var(--fill-dark);}
+  .sbar{flex:1;height:2px;background:var(--fill-dark);}
+  .sbar.done{background:var(--done);}
+  .st-label{font-size:.95em;color:var(--ink);font-weight:600;white-space:nowrap;width:16%;text-align:right;}
+  .st-label.act{color:var(--note);}
+
+  /* new request form */
+  .form-col{max-width:62%;display:flex;flex-direction:column;gap:2%;}
+  .f-label{font-weight:700;font-size:1em;margin-bottom:.6%;}
+  .f-input{
+    border:1.5px solid var(--line);border-radius:8px;
+    padding:1.6% 2.4%;color:#9aa1ab;
+  }
+  .f-row{display:flex;gap:2.5%;}
+  .f-row > div{flex:1;}
+  .submit-bar{
+    display:flex;justify-content:flex-end;gap:2%;
+    margin-top:1.5%;
+  }
+  .btn{
+    border:1.5px solid var(--ink);border-radius:8px;
+    padding:1.3% 3.4%;font-weight:700;text-align:center;
+  }
+  .btn.primary{background:var(--ink);color:#fff;}
+  .btn.ghost{background:#fff;color:var(--ink);}
+
+  /* request detail — timeline */
+  .detail-grid{display:flex;gap:4%;height:100%;}
+  .tl-col{flex:1.4;}
+  .side-col{flex:1;display:flex;flex-direction:column;gap:3%;}
+  .status-hero{
+    border:1.5px solid var(--line);border-radius:12px;
+    padding:3% 4%;margin-bottom:3%;
+    background:var(--fill);
+  }
+  .status-hero .big{font-size:1.6em;font-weight:800;}
+  .status-hero .sub2{color:#6b7280;margin-top:1%;}
+  .tl{position:relative;padding-left:6%;}
+  .tl::before{
+    content:"";position:absolute;left:2.2%;top:1%;bottom:4%;
+    width:2px;background:var(--fill-dark);
+  }
+  .tl-item{position:relative;padding-bottom:4.5%;}
+  .tl-item::before{
+    content:"";position:absolute;left:-5.2%;top:.5%;
+    width:2.6%;aspect-ratio:1;border-radius:50%;
+    background:var(--fill-dark);border:2px solid #fff;
+  }
+  .tl-item.done::before{background:var(--done);}
+  .tl-item.now::before{background:var(--ink);outline:2px solid var(--fill-dark);}
+  .tl-item .t{font-weight:700;}
+  .tl-item.dim .t{color:#9aa1ab;font-weight:400;}
+  .tl-item .d{color:#6b7280;font-size:.95em;margin-top:.6%;}
+  .panel{
+    border:1.5px solid var(--line);border-radius:12px;padding:3% 4.5%;
+  }
+  .panel .pt{font-weight:700;margin-bottom:2.5%;}
+  .comment{
+    background:var(--fill);border-radius:8px;padding:2.5% 3.5%;
+    color:#6b7280;font-size:.95em;margin-bottom:2%;
+  }
+  .approve-panel{
+    border:2px solid var(--ink);border-radius:12px;padding:3.5% 4.5%;
+  }
+
+  /* mobile frame */
+  .duo{display:flex;gap:16px;max-width:680px;margin:0 auto;align-items:flex-start;flex-wrap:wrap;}
+  .mobile{
+    width:200px;aspect-ratio:390/760;
+    background:#fff;border:2px solid var(--ink);border-radius:16px;
+    overflow:hidden;font-size:7px;flex-shrink:0;
+    display:flex;flex-direction:column;margin:0 auto;
+  }
+  .m-nav{display:flex;justify-content:space-between;padding:5% 6%;border-bottom:1.5px solid var(--line);font-weight:800;}
+  .m-body{flex:1;padding:5% 6%;overflow:hidden;}
+
+  .ann{
+    max-width:680px;margin:14px auto 0;
+    font-size:12.5px;line-height:1.6;color:#4b5563;
+  }
+  .ann b{color:var(--note);}
+  .ann li{margin-bottom:6px;margin-left:18px;}
+</style>
+</head>
+<body>
+
+<h1>의뢰자 포털 와이어프레임</h1>
+<p class="sub">웹/모바일 반응형 · 데스크톱 기준 1440×900 · 로우파이 — 여백 넉넉 + 상태 스토리텔링 톤</p>
+
+<!-- ============ 1. 대시보드 ============ -->
+<p class="section-title">① 대시보드 — 내 의뢰 현황</p>
+<p class="section-desc">각 의뢰가 지금 어느 단계인지 미니 스테퍼로 한눈에. 액션 필요 건은 강조 라벨.</p>
+
+<div class="frame-wrap">
+  <div class="desktop">
+    <div class="nav">
+      <span class="logo">LAB GUIDE</span>
+      <span class="item on">내 의뢰</span>
+      <span class="item">캘린더</span>
+      <span class="item">준비 가이드</span>
+      <span class="spacer"></span>
+      <span class="cta">+ 새 의뢰</span>
+      <span class="avatar"></span>
+    </div>
+    <div class="page">
+      <div class="h2">내 의뢰</div>
+      <div class="desc">진행중 3건 · 완료 12건</div>
+      <div class="req-grid">
+        <div class="req-card" style="border-color:var(--ink);border-width:2px;">
+          <div class="info">
+            <div class="name">PBS 1X <span class="mono" style="color:#9aa1ab;font-size:.85em;">REQ-045</span></div>
+            <div class="meta">7월 20일 의뢰 · LOT-2607-03</div>
+          </div>
+          <div class="stepper">
+            <div class="sdot done"></div><div class="sbar done"></div>
+            <div class="sdot done"></div><div class="sbar done"></div>
+            <div class="sdot done"></div><div class="sbar"></div>
+            <div class="sdot now"></div><div class="sbar"></div>
+            <div class="sdot"></div>
+          </div>
+          <div class="st-label act">최종 승인 필요 →</div>
+        </div>
+        <div class="req-card">
+          <div class="info">
+            <div class="name">Tris-HCl 1M <span class="mono" style="color:#9aa1ab;font-size:.85em;">REQ-044</span></div>
+            <div class="meta">7월 19일 의뢰 · LOT-2607-02</div>
+          </div>
+          <div class="stepper">
+            <div class="sdot done"></div><div class="sbar done"></div>
+            <div class="sdot done"></div><div class="sbar"></div>
+            <div class="sdot now"></div><div class="sbar"></div>
+            <div class="sdot"></div><div class="sbar"></div>
+            <div class="sdot"></div>
+          </div>
+          <div class="st-label">공정 진행중</div>
+        </div>
+        <div class="req-card">
+          <div class="info">
+            <div class="name">TAE 50X <span class="mono" style="color:#9aa1ab;font-size:.85em;">REQ-043</span></div>
+            <div class="meta">7월 18일 의뢰</div>
+          </div>
+          <div class="stepper">
+            <div class="sdot now"></div><div class="sbar"></div>
+            <div class="sdot"></div><div class="sbar"></div>
+            <div class="sdot"></div><div class="sbar"></div>
+            <div class="sdot"></div><div class="sbar"></div>
+            <div class="sdot"></div>
+          </div>
+          <div class="st-label">수락 대기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="ann">
+  <li><b>미니 스테퍼 5단계</b> — 의뢰 접수 → 수락 → 공정 → 결과 검토 → 완료. 상태 텍스트보다 위치감이 직관적.</li>
+  <li><b>액션 필요 건 최상단</b> — "최종 승인 필요" 등 의뢰자 입력이 필요한 건은 테두리 강조 + 정렬 우선.</li>
+  <li>상단 내비: 내 의뢰 / 캘린더 / 준비 가이드 3개 + "새 의뢰" CTA. 화면 수를 늘리지 않고 나머지는 의뢰 상세 안에 통합.</li>
+</ul>
+
+<!-- ============ 2. 새 의뢰 ============ -->
+<p class="section-title">② 새 의뢰 — 버퍼 제조 요청</p>
+<p class="section-desc">단일 페이지 폼. 레시피 선택 시 타겟 파라미터 자동 채움(수정 가능).</p>
+
+<div class="frame-wrap">
+  <div class="desktop">
+    <div class="nav">
+      <span class="logo">LAB GUIDE</span>
+      <span class="item">내 의뢰</span>
+      <span class="item">캘린더</span>
+      <span class="item">준비 가이드</span>
+      <span class="spacer"></span>
+      <span class="avatar"></span>
+    </div>
+    <div class="page">
+      <div class="h2">새 의뢰</div>
+      <div class="desc">레시피를 선택하면 기본값이 채워집니다</div>
+      <div class="form-col">
+        <div>
+          <div class="f-label">버퍼 레시피</div>
+          <div class="f-input">PBS 1X ▾</div>
+        </div>
+        <div class="f-row">
+          <div><div class="f-label">목표 pH</div><div class="f-input mono">7.4</div></div>
+          <div><div class="f-label">부피</div><div class="f-input mono">500 mL</div></div>
+          <div><div class="f-label">희망 완료일</div><div class="f-input">7/22 ▾</div></div>
+        </div>
+        <div>
+          <div class="f-label">요청 사항 (선택)</div>
+          <div class="f-input" style="padding-bottom:7%;">멸균 여과 필요, 4°C 보관…</div>
+        </div>
+        <div class="submit-bar">
+          <div class="btn ghost">임시 저장</div>
+          <div class="btn primary">의뢰 보내기</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ul class="ann">
+  <li><b>레시피 우선 선택</b> — BufferRecipe의 target_params를 기본값으로 주입, 의뢰자는 필요한 값만 수정. 입력 부담 최소화.</li>
+  <li>제출 후 → 대시보드로 복귀, 새 카드가 "수락 대기" 상태로 추가.</li>
+</ul>
+
+<!-- ============ 3. 의뢰 상세 ============ -->
+<p class="section-title">③ 의뢰 상세 — 상태 스토리텔링 + 최종 승인</p>
+<p class="section-desc">기획서 화면 3·4·5·6(공정 조회/이슈/요약/결과)을 하나의 상세 페이지로 통합. 좌측 타임라인이 스토리 축, 우측이 문서·액션.</p>
+
+<div class="frame-wrap">
+  <div class="desktop">
+    <div class="nav">
+      <span class="logo">LAB GUIDE</span>
+      <span class="item on">내 의뢰</span>
+      <span class="item">캘린더</span>
+      <span class="item">준비 가이드</span>
+      <span class="spacer"></span>
+      <span class="avatar"></span>
+    </div>
+    <div class="page wide">
+      <div class="detail-grid">
+        <div class="tl-col">
+          <div class="status-hero">
+            <div class="big">결과가 도착했습니다 — 승인을 기다리고 있어요</div>
+            <div class="sub2">PBS 1X · <span class="mono">LOT-2607-03</span> · 제조자 1차 검토 완료 (최제조, 7/20 16:40)</div>
+          </div>
+          <div class="tl">
+            <div class="tl-item done"><div class="t">의뢰 접수</div><div class="d">7/20 09:12</div></div>
+            <div class="tl-item done"><div class="t">제조자 수락 · 배치 생성</div><div class="d">7/20 09:45 · LOT-2607-03</div></div>
+            <div class="tl-item done"><div class="t">공정 완료 (5/5 단계)</div><div class="d">7/20 15:30 · 편차 0건</div></div>
+            <div class="tl-item done"><div class="t">배치 요약 확정</div><div class="d">7/20 16:10 · 요약 보기 →</div></div>
+            <div class="tl-item now"><div class="t">결과 검토 — 최종 승인 대기</div><div class="d">아래에서 결과 확인 후 승인해 주세요</div></div>
+            <div class="tl-item dim"><div class="t">완료</div></div>
+          </div>
+        </div>
+        <div class="side-col">
+          <div class="panel">
+            <div class="pt">결과 <span style="color:#9aa1ab;font-weight:400;">(제조자 서명 완료)</span></div>
+            <div class="mono" style="color:#6b7280;line-height:1.9;">
+              pH&nbsp;&nbsp;&nbsp;&nbsp;7.41 &nbsp;(목표 7.40)<br>
+              부피&nbsp;&nbsp;500 mL<br>
+              전도도&nbsp;15.2 mS/cm
+            </div>
+          </div>
+          <div class="panel">
+            <div class="pt">코멘트</div>
+            <div class="comment">의뢰자: 지난번보다 pH 허용범위 좁게 부탁드립니다</div>
+            <div class="comment">제조자: 반영했습니다. ±0.05 이내로 관리했어요</div>
+            <div class="f-input" style="font-size:.95em;">코멘트 입력…</div>
+          </div>
+          <div class="approve-panel">
+            <div class="pt">최종 승인</div>
+            <div style="display:flex;gap:3%;">
+              <div class="btn primary" style="flex:2;">승인 (서명)</div>
+              <div class="btn ghost" style="flex:1.4;">반려 · 재의뢰</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- mobile variant -->
+<p class="section-title" style="margin-top:28px;">③-b 모바일 변형 — 의뢰 상세</p>
+<p class="section-desc">반응형: 타임라인이 위, 결과·승인 패널이 아래로 스택. 승인 버튼은 하단 고정 바.</p>
+
+<div class="duo">
+  <div class="mobile">
+    <div class="m-nav"><span>‹ 내 의뢰</span><span>⋯</span></div>
+    <div class="m-body">
+      <div class="status-hero" style="padding:6% 7%;margin-bottom:6%;">
+        <div class="big" style="font-size:1.3em;">결과 도착 — 승인 대기</div>
+        <div class="sub2">PBS 1X · <span class="mono">LOT-2607-03</span></div>
+      </div>
+      <div class="tl" style="padding-left:9%;">
+        <div class="tl-item done" style="padding-bottom:7%;"><div class="t">의뢰 접수</div><div class="d">7/20 09:12</div></div>
+        <div class="tl-item done" style="padding-bottom:7%;"><div class="t">수락 · 배치 생성</div><div class="d">09:45</div></div>
+        <div class="tl-item done" style="padding-bottom:7%;"><div class="t">공정 완료 (5/5)</div><div class="d">편차 0건</div></div>
+        <div class="tl-item done" style="padding-bottom:7%;"><div class="t">요약 확정</div><div class="d">요약 보기 →</div></div>
+        <div class="tl-item now" style="padding-bottom:7%;"><div class="t">최종 승인 대기</div></div>
+      </div>
+      <div class="panel" style="padding:5% 7%;margin-top:2%;">
+        <div class="pt">결과</div>
+        <div class="mono" style="color:#6b7280;line-height:1.8;">pH 7.41 · 500 mL</div>
+      </div>
+    </div>
+    <div style="border-top:1.5px solid var(--line);padding:4% 6%;display:flex;gap:3%;">
+      <div class="btn primary" style="flex:2;padding:3.5% 0;">승인 (서명)</div>
+      <div class="btn ghost" style="flex:1.3;padding:3.5% 0;">반려</div>
+    </div>
+  </div>
+</div>
+
+<ul class="ann">
+  <li><b>화면 통합</b> — 공정 조회·이슈·요약·결과를 별도 페이지가 아닌 의뢰 상세 하나로. 타임라인 항목("요약 보기 →")에서 문서로 진입. 의뢰자 포털 실제 페이지 수: 대시보드 / 새 의뢰 / 의뢰 상세 / 캘린더 / 준비 가이드 = 5장.</li>
+  <li><b>상태 히어로</b> — "결과가 도착했습니다" 같은 문장형 상태 표기. 기획서 4번 "상태를 스토리텔링하듯" 방향 반영.</li>
+  <li><b>편차 노출</b> — 편차 발생 시 타임라인에 경고색 항목으로 삽입("편차 1건 — pH 이탈 · 조치 완료"), 탭하면 원인·조치 내역 열람 + 코멘트 가능.</li>
+  <li><b>승인/반려 쌍</b> — 반려 선택 시 코멘트 필수 입력 → 상태 플로우의 "재의뢰" 경로로 진입. 승인은 서명 기록(signed_by, signed_at) 저장.</li>
+  <li><b>모바일</b> — 동일 콘텐츠 세로 스택, 핵심 액션(승인)은 하단 고정 바.</li>
+</ul>
+
+</body>
+</html>
