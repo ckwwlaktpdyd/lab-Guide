@@ -22,27 +22,32 @@ delete from auth.users where email like '%@labguide.demo';
 -- 바로 로그인해볼 수 있어야 한다. 매직링크만 쓸 거면 encrypted_password 줄을 지우면 된다.
 --   데모 비밀번호: labguide2026
 
+-- ⚠️ 토큰 계열 컬럼을 NULL로 두면 안 된다.
+-- GoTrue가 이 값들을 Go의 string으로 읽는데 NULL은 스캔에 실패한다.
+-- 그러면 로그인 시 500 "Database error querying schema"가 난다. 빈 문자열이어야 한다.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  email_change_token_current, phone_change, phone_change_token, reauthentication_token
 )
 values
   ('00000000-0000-0000-0000-000000000000', '11111111-1111-4111-8111-000000000001',
    'authenticated', 'authenticated', 'client1@labguide.demo',
    crypt('labguide2026', gen_salt('bf')), now(),
-   '{"provider":"email","providers":["email"],"role":"client"}', '{"name":"김의뢰"}', now(), now()),
+   '{"provider":"email","providers":["email"],"role":"client"}', '{"name":"김의뢰"}', now(), now(), '', '', '', '', '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '11111111-1111-4111-8111-000000000002',
    'authenticated', 'authenticated', 'client2@labguide.demo',
    crypt('labguide2026', gen_salt('bf')), now(),
-   '{"provider":"email","providers":["email"],"role":"client"}', '{"name":"이연구"}', now(), now()),
+   '{"provider":"email","providers":["email"],"role":"client"}', '{"name":"이연구"}', now(), now(), '', '', '', '', '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '11111111-1111-4111-8111-000000000003',
    'authenticated', 'authenticated', 'client3@labguide.demo',
    crypt('labguide2026', gen_salt('bf')), now(),
-   '{"provider":"email","providers":["email"],"role":"client"}', '{"name":"박실험"}', now(), now()),
+   '{"provider":"email","providers":["email"],"role":"client"}', '{"name":"박실험"}', now(), now(), '', '', '', '', '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '22222222-2222-4222-8222-000000000001',
    'authenticated', 'authenticated', 'maker@labguide.demo',
    crypt('labguide2026', gen_salt('bf')), now(),
-   '{"provider":"email","providers":["email"],"role":"manufacturer"}', '{"name":"최제조"}', now(), now());
+   '{"provider":"email","providers":["email"],"role":"manufacturer"}', '{"name":"최제조"}', now(), now(), '', '', '', '', '', '', '', '');
 
 -- identities가 없으면 로그인이 되지 않는다.
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
