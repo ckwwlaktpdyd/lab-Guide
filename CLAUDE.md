@@ -110,6 +110,13 @@ surface #FFFFFF   paper #FAFAF8(의뢰자 배경)   bench #EEF2F2(제조자 배�
 - 수동 덮어쓰기: 값 탭 → 사유 입력 필수
 - 의뢰자 결과 패널에도 같은 배지를 노출한다
 
+**칭량 시약 vs 적정 시약** — 레시피 시약은 두 종류다. `BufferRecipe.steps[]`에 `reagent_kind: 'weighed' | 'titrated'`를 둔다.
+
+- **칭량**(NaCl·Tris base·EDTA 분말 등): 레시피에 고정된 양. 저울 자동 기록.
+- **적정**(HCl·NaOH): **고정 용량을 박아두지 말 것.** 목표 pH에 도달할 때까지 넣으므로 투입량은 목표가 아니라 **결과**다. 단계 완료 판정은 투입량이 아니라 **측정 pH가 허용 범위 안에 들어왔는지**로 한다. 실제 투입량은 `source: 'manual'`로 기록(뷰렛은 계측기 연동 밖).
+
+Tris 계열은 pH가 온도에 크게 좌우된다(−0.028 pH/°C). **온도 평형 단계가 pH 조정보다 앞**이고, pH 측정값에는 측정 온도가 함께 남아야 한다.
+
 ## 코딩 컨벤션
 
 - TypeScript strict. `any` 금지, DB 타입은 `src/shared/db`에서 생성된 타입을 쓴다.
