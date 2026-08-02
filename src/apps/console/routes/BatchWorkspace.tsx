@@ -1,12 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { Button, Card, DataValue, InstrumentBadge, StatusBadge, type BadgeTone } from '@shared/ui';
+import {
+  Button,
+  Card,
+  DataValue,
+  InstrumentBadge,
+  PromptDialog,
+  StatusBadge,
+  type BadgeTone,
+} from '@shared/ui';
 import {
   BATCH_STATUS_LABEL,
   DEVIATION_STATUS_LABEL,
+  completeStep,
   fetchBatchDeviations,
   fetchBatches,
   fetchBatchSteps,
+  registerDeviation,
+  resolveDeviation,
   type BatchDeviation,
   type BatchListItem,
   type BatchStatus,
@@ -54,23 +65,26 @@ const md = new Intl.DateTimeFormat('ko-KR', {
   hour12: false,
 });
 
-type Filter = 'active' | 'preparing' | 'completed';
+type Filter = 'active' | 'preparing' | 'completed' | 'deviation';
 
-export function BatchWorkspace() {
+export function BatchWorkspace({ initialFilter }: { initialFilter?: Filter } = {}) {
   const [batches, setBatches] = useState<BatchListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>('active');
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? 'active');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     fetchBatches()
       .then(setBatches)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
 
+  useEffect(reload, [reload]);
+
   const visible = useMemo(() => {
     if (!batches) return [];
     if (filter === 'active') return batches.filter((b) => b.status === 'running' || b.status === 'deviation');
+    if (filter === 'deviation') return batches.filter((b) => b.status === 'deviation');
     if (filter === 'preparing') return batches.filter((b) => b.status === 'preparing');
     return batches.filter((b) => b.status === 'completed');
   }, [batches, filter]);
@@ -85,6 +99,9 @@ export function BatchWorkspace() {
         <>
           <FilterChip active={filter === 'active'} onClick={() => setFilter('active')}>
             진행중
+          </FilterChip>
+          <FilterChip active={filter === 'deviation'} onClick={() => setFilter('deviation')}>
+            편차
           </FilterChip>
           <FilterChip active={filter === 'preparing'} onClick={() => setFilter('preparing')}>
             대기
@@ -126,25 +143,40 @@ export function BatchWorkspace() {
           </ul>
         )
       }
-      detail={selected ? <BatchDetail batch={selected} /> : <EmptyDetail>배치를 선택하세요</EmptyDetail>}
+      detail={
+        selected ? (
+          <BatchDetail batch={selected} onChanged={reload} />
+        ) : (
+          <EmptyDetail>배치를 선택하세요</EmptyDetail>
+        )
+      }
     />
   );
 }
 
 type TabId = 'process' | 'deviations' | 'summary' | 'result';
 
-function BatchDetail({ batch }: { batch: BatchListItem }) {
+function BatchDetail({ batch, onChanged }: { batch: BatchListItem; onChanged: () => void }) {
   const [steps, setSteps] = useState<BatchStep[] | null>(null);
   const [deviations, setDeviations] = useState<BatchDeviation[] | null>(null);
   const [tab, setTab] = useState<TabId>('process');
+
+  const refresh = useCallback(() => {
+    void fetchBatchSteps(batch.id).then(setSteps);
+    void fetchBatchDeviations(batch.id).then(setDeviations);
+  }, [batch.id]);
 
   useEffect(() => {
     setSteps(null);
     setDeviations(null);
     setTab('process');
-    void fetchBatchSteps(batch.id).then(setSteps);
-    void fetchBatchDeviations(batch.id).then(setDeviations);
-  }, [batch.id]);
+    refresh();
+  }, [batch.id, refresh]);
+
+  const after = useCallback(() => {
+    refresh();
+    onChanged();
+  }, [refresh, onChanged]);
 
   const done = steps?.filter((s) => s.status === 'done').length ?? 0;
   const total = steps?.length ?? 0;
@@ -231,14 +263,22 @@ function BatchDetail({ batch }: { batch: BatchListItem }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === 'process' && <ProcessTab steps={steps} target={target} />}
-        {tab === 'deviations' && <DeviationTab deviations={deviations} />}
+        {tab === 'process' && <ProcessTab steps={steps} target={target} onChanged={after} />}
+        {tab === 'deviations' && <DeviationTab deviations={deviations} onChanged={after} />}
       </div>
     </>
   );
 }
 
-function ProcessTab({ steps, target }: { steps: BatchStep[] | null; target: RecipeTargetParams }) {
+function ProcessTab({
+  steps,
+  target,
+  onChanged,
+}: {
+  steps: BatchStep[] | null;
+  target: RecipeTargetParams;
+  onChanged: () => void;
+}) {
   if (!steps) return <p className="text-caption text-ink-dim">불러오는 중…</p>;
 
   return (
@@ -274,7 +314,7 @@ function ProcessTab({ steps, target }: { steps: BatchStep[] | null; target: Reci
             </div>
 
             {/* 현재 진행 단계에만 입력 박스를 인라인 노출한다(spec §9) */}
-            {isNow && <CurrentStepBox step={step} target={target} />}
+            {isNow && <CurrentStepBox step={step} target={target} onChanged={onChanged} />}
           </li>
         );
       })}
@@ -296,7 +336,18 @@ function StepDot({ status }: { status: BatchStep['status'] }) {
   return <span className="size-5 shrink-0 rounded-full border-[1.5px] border-line bg-surface" />;
 }
 
-function CurrentStepBox({ step, target }: { step: BatchStep; target: RecipeTargetParams }) {
+function CurrentStepBox({
+  step,
+  target,
+  onChanged,
+}: {
+  step: BatchStep;
+  target: RecipeTargetParams;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { kind, reagent, target_amount, target_unit, note } = step.recipe_steps;
   const auto = step.measurements.filter((m) => m.source === 'instrument');
   const badge = auto.find((m) => m.instrument_id && m.captured_at);
@@ -357,19 +408,73 @@ function CurrentStepBox({ step, target }: { step: BatchStep; target: RecipeTarge
         </div>
       )}
 
+      {error && (
+        <p role="alert" className="mt-3 text-caption text-phenol-pink">
+          {error}
+        </p>
+      )}
+
       <div className="mt-4 flex gap-3">
-        <Button variant="sign" touch className="flex-[2]">
-          단계 완료
+        <Button
+          variant="sign"
+          touch
+          className="flex-[2]"
+          disabled={busy || step.status === 'deviation'}
+          title={step.status === 'deviation' ? '편차를 먼저 조치해야 합니다' : undefined}
+          onClick={() => {
+            setBusy(true);
+            setError(null);
+            completeStep(step.id)
+              .then(onChanged)
+              .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          {busy ? '처리 중…' : '단계 완료'}
         </Button>
-        <Button variant="deviation" touch className="flex-1">
+        <Button
+          variant="deviation"
+          touch
+          className="flex-1"
+          disabled={busy || step.status === 'deviation'}
+          onClick={() => setRegistering(true)}
+        >
           편차 등록
         </Button>
       </div>
+
+      <PromptDialog
+        open={registering}
+        title="편차 등록"
+        description="공정 흐름을 벗어나지 않고 이 자리에서 기록합니다. 원인·조치는 편차 탭에서 이어서 입력합니다."
+        fields={[
+          {
+            name: 'description',
+            label: '무엇이 어긋났습니까',
+            placeholder: '예) 측정 pH 8.12 — 허용 7.95–8.05 상한 이탈',
+          },
+        ]}
+        confirmLabel="편차 등록"
+        confirmVariant="deviation"
+        onCancel={() => setRegistering(false)}
+        onConfirm={async (v) => {
+          await registerDeviation(step.id, v.description ?? '');
+          setRegistering(false);
+          onChanged();
+        }}
+      />
     </div>
   );
 }
 
-function DeviationTab({ deviations }: { deviations: BatchDeviation[] | null }) {
+function DeviationTab({
+  deviations,
+  onChanged,
+}: {
+  deviations: BatchDeviation[] | null;
+  onChanged: () => void;
+}) {
+  const [resolving, setResolving] = useState<BatchDeviation | null>(null);
   if (!deviations) return <p className="text-caption text-ink-dim">불러오는 중…</p>;
   if (deviations.length === 0)
     return <p className="text-caption text-ink-dim">등록된 편차가 없습니다.</p>;
@@ -403,7 +508,7 @@ function DeviationTab({ deviations }: { deviations: BatchDeviation[] | null }) {
 
             {d.status === 'open' && (
               <div className="mt-3">
-                <Button variant="primary" touch>
+                <Button variant="primary" touch onClick={() => setResolving(d)}>
                   원인 · 조치 입력
                 </Button>
               </div>
@@ -411,6 +516,25 @@ function DeviationTab({ deviations }: { deviations: BatchDeviation[] | null }) {
           </Card>
         </li>
       ))}
+
+      <PromptDialog
+        open={resolving !== null}
+        title={`${resolving?.code ?? ''} 조치 완료`}
+        description="원인과 조치를 모두 남겨야 편차를 닫을 수 있습니다. 마지막 편차가 닫히면 배치가 다시 진행중으로 돌아갑니다."
+        fields={[
+          { name: 'cause', label: '원인', placeholder: '예) 적정 과잉 — 산 투입 속도 과다' },
+          { name: 'action', label: '조치', placeholder: '예) NaOH로 재조정 후 재측정. 7.99 확인' },
+        ]}
+        confirmLabel="조치 완료"
+        confirmVariant="sign"
+        onCancel={() => setResolving(null)}
+        onConfirm={async (v) => {
+          if (!resolving) return;
+          await resolveDeviation(resolving.id, v.cause ?? '', v.action ?? '');
+          setResolving(null);
+          onChanged();
+        }}
+      />
     </ul>
   );
 }

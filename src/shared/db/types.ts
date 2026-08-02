@@ -7,6 +7,11 @@
  *   npx supabase gen types typescript --project-id <ref> > src/shared/db/types.ts
  *
  * 그때까지는 마이그레이션을 고칠 때 이 파일도 함께 고쳐야 한다.
+ *
+ * ⚠️ 여기의 행 타입은 반드시 `interface`가 아니라 `type`이어야 한다.
+ * supabase-js의 GenericTable이 `Row: Record<string, unknown>`을 요구하는데,
+ * interface는 암묵적 인덱스 시그니처를 갖지 않아 대입되지 않는다. 그러면 스키마 전체가
+ * GenericSchema 판정에 실패하고 `.rpc()` 인자 타입이 undefined로 무너진다.
  */
 
 import type {
@@ -21,30 +26,30 @@ import type {
   UserRole,
 } from './constants';
 
-export interface Profile {
+export type Profile = {
   id: string;
   name: string;
   role: UserRole;
   org: string;
   created_at: string;
-}
+};
 
-export interface Instrument {
+export type Instrument = {
   id: string;
   kind: string;
   provides: string[];
   created_at: string;
-}
+};
 
-export interface ReagentLot {
+export type ReagentLot = {
   id: string;
   reagent: string;
   lot_number: string;
   expires_on: string;
   note: string | null;
-}
+};
 
-export interface RecipeTargetParams {
+export type RecipeTargetParams = {
   ph?: number;
   ph_tolerance?: number;
   ph_min?: number;
@@ -53,16 +58,16 @@ export interface RecipeTargetParams {
   conductivity_ms_cm?: number;
   conductivity_min?: number;
   conductivity_max?: number;
-}
+};
 
-export interface BufferRecipe {
+export type BufferRecipe = {
   id: string;
   name: string;
   target_params: RecipeTargetParams;
   created_at: string;
-}
+};
 
-export interface RecipeStep {
+export type RecipeStep = {
   id: string;
   recipe_id: string;
   seq: number;
@@ -74,9 +79,9 @@ export interface RecipeStep {
   target_amount: number | null;
   target_unit: string | null;
   note: string | null;
-}
+};
 
-export interface Request {
+export type Request = {
   id: string;
   code: string;
   requester_id: string;
@@ -89,9 +94,9 @@ export interface Request {
   reason: string | null;
   rejection_reason: string | null;
   created_at: string;
-}
+};
 
-export interface Batch {
+export type Batch = {
   id: string;
   lot_number: string;
   request_id: string;
@@ -100,9 +105,9 @@ export interface Batch {
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
-}
+};
 
-export interface ProcessStep {
+export type ProcessStep = {
   id: string;
   batch_id: string;
   recipe_step_id: string;
@@ -112,10 +117,10 @@ export interface ProcessStep {
   note: string | null;
   updated_by: string | null;
   completed_at: string | null;
-}
+};
 
 /** spec §10 공통 구조. 공정 단계와 최종 결과 양쪽에 붙는다. */
-export interface Measurement {
+export type Measurement = {
   id: string;
   process_step_id: string | null;
   result_id: string | null;
@@ -131,9 +136,9 @@ export interface Measurement {
   /** source='manual'이면 필수 — 감사 추적 */
   override_reason: string | null;
   created_at: string;
-}
+};
 
-export interface Deviation {
+export type Deviation = {
   id: string;
   code: string;
   batch_id: string;
@@ -145,17 +150,17 @@ export interface Deviation {
   created_by: string;
   created_at: string;
   resolved_at: string | null;
-}
+};
 
-export interface BatchSummary {
+export type BatchSummary = {
   id: string;
   batch_id: string;
   content: string;
   confirmed_by: string | null;
   confirmed_at: string | null;
-}
+};
 
-export interface Result {
+export type Result = {
   id: string;
   batch_id: string;
   /** 제조자 1차 검토(서명) */
@@ -167,29 +172,29 @@ export interface Result {
   client_signed_at: string | null;
   revision_note: string | null;
   created_at: string;
-}
+};
 
-export interface Comment {
+export type Comment = {
   id: string;
   request_id: string;
   author_id: string;
   body: string;
   created_at: string;
-}
+};
 
 /** 서버가 채우는 컬럼은 insert 시 생략할 수 있다. */
 type Generated = 'id' | 'created_at';
 type Insert<T, K extends keyof T = never> = Omit<T, Extract<Generated | K, keyof T>> &
   Partial<Pick<T, Extract<Generated | K, keyof T>>>;
 
-interface Table<Row, Ins = Insert<Row>> {
+type Table<Row, Ins = Insert<Row>> = {
   Row: Row;
   Insert: Ins;
   Update: Partial<Ins>;
   Relationships: [];
-}
+};
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: Table<Profile, Insert<Profile, 'created_at'>>;
@@ -206,8 +211,21 @@ export interface Database {
       results: Table<Result>;
       comments: Table<Comment>;
     };
-    Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Views: { [_ in never]: never };
+    Functions: {
+      accept_request: { Args: { p_request_id: string }; Returns: Batch };
+      reject_request: { Args: { p_request_id: string; p_reason: string }; Returns: undefined };
+      complete_step: { Args: { p_step_id: string }; Returns: undefined };
+      register_deviation: {
+        Args: { p_step_id: string; p_description: string };
+        Returns: Deviation;
+      };
+      resolve_deviation: {
+        Args: { p_deviation_id: string; p_cause: string; p_action: string };
+        Returns: undefined;
+      };
+      next_lot_number: { Args: Record<string, never>; Returns: string };
+    };
     Enums: {
       user_role: UserRole;
       request_type: RequestType;
@@ -219,6 +237,6 @@ export interface Database {
       measurement_source: MeasurementSource;
       reagent_kind: ReagentKind;
     };
-    CompositeTypes: Record<never, never>;
+    CompositeTypes: { [_ in never]: never };
   };
-}
+};

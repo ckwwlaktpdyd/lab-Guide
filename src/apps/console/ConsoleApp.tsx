@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { RotateGuard } from '@shared/ui';
 import { fetchCounts, useSession } from '@shared/db';
 import { IconRail } from './components/IconRail';
+import { ConsoleHome } from './routes/ConsoleHome';
 import { RequestInbox } from './routes/RequestInbox';
 import { BatchWorkspace } from './routes/BatchWorkspace';
 
@@ -14,9 +15,11 @@ export function ConsoleApp() {
   const { session, role, loading } = useSession();
   const [counts, setCounts] = useState({ pendingRequests: 0, activeBatches: 0, openDeviations: 0 });
 
+  const location = useLocation();
   useEffect(() => {
     if (role === 'manufacturer') void fetchCounts().then(setCounts);
-  }, [role]);
+    // 수락·편차 조치로 카운트가 바뀌므로 화면을 옮길 때마다 다시 센다.
+  }, [role, location.pathname]);
 
   if (loading) return <div className="grid min-h-dvh place-items-center bg-bench text-ink-dim">…</div>;
   if (!session) return <Navigate to="/" replace />;
@@ -41,11 +44,11 @@ export function ConsoleApp() {
       <RotateGuard />
       <IconRail pendingRequests={counts.pendingRequests} openDeviations={counts.openDeviations} />
       <Routes>
-        <Route index element={<Navigate to="batches" replace />} />
+        <Route index element={<ConsoleHome />} />
         <Route path="requests" element={<RequestInbox />} />
         <Route path="batches" element={<BatchWorkspace />} />
-        <Route path="deviations" element={<Navigate to="../batches" replace />} />
-        <Route path="*" element={<Navigate to="batches" replace />} />
+        <Route path="deviations" element={<BatchWorkspace initialFilter="deviation" />} />
+        <Route path="*" element={<Navigate to="." replace />} />
       </Routes>
     </div>
   );

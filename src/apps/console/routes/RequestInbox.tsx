@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import {
   Button,
   Card,
   DataValue,
   InstrumentBadge,
+  PromptDialog,
   StatusBadge,
   type BadgeTone,
 } from '@shared/ui';
 import {
   REQUEST_TYPE_LABEL,
+  acceptRequest,
   fetchPendingRequests,
   fetchResultMeasurementsByLot,
   type RequestListItem,
   type RequestType,
   type ResultMeasurement,
+  rejectRequest,
 } from '@shared/db';
 import { EmptyDetail, FilterChip, SplitView } from '../components/SplitView';
 
@@ -48,11 +51,13 @@ export function RequestInbox() {
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     fetchPendingRequests()
       .then(setItems)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
+
+  useEffect(reload, [reload]);
 
   const visible = useMemo(() => {
     if (!items) return [];
@@ -114,12 +119,22 @@ export function RequestInbox() {
           </ul>
         )
       }
-      detail={selected ? <RequestDetail request={selected} /> : <EmptyDetail>의뢰를 선택하세요</EmptyDetail>}
+      detail={
+        selected ? (
+          <RequestDetail request={selected} onDone={reload} />
+        ) : (
+          <EmptyDetail>의뢰를 선택하세요</EmptyDetail>
+        )
+      }
     />
   );
 }
 
-function RequestDetail({ request }: { request: RequestListItem }) {
+function RequestDetail({ request, onDone }: { request: RequestListItem; onDone: () => void }) {
+  const [rejecting, setRejecting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { target_params: target } = request.recipe;
   const originLot = request.parent?.batches?.lot_number ?? null;
 
@@ -186,14 +201,56 @@ function RequestDetail({ request }: { request: RequestListItem }) {
           </section>
         )}
 
+        {toast && (
+          <p role="status" className="rounded-control border border-indicator-green/40 bg-indicator-green/[.06] p-3 text-caption text-indicator-green">
+            {toast}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="rounded-control border border-phenol-pink/45 p-3 text-caption text-phenol-pink">
+            {error}
+          </p>
+        )}
+
         <div className="mt-auto flex gap-3 pt-2">
-          <Button variant="primary" touch className="flex-[2]">
-            수락 → 배치 생성
+          <Button
+            variant="primary"
+            touch
+            className="flex-[2]"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              setError(null);
+              acceptRequest(request.id)
+                .then((b) => {
+                  setToast(`배치 ${b.lot_number} 생성됨 — 배치 탭에서 이어서 작업하세요`);
+                  onDone();
+                })
+                .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+                .finally(() => setBusy(false));
+            }}
+          >
+            {busy ? '처리 중…' : '수락 → 배치 생성'}
           </Button>
-          <Button variant="ghost" touch className="flex-1">
+          <Button variant="ghost" touch className="flex-1" disabled={busy} onClick={() => setRejecting(true)}>
             반려 (사유 입력)
           </Button>
         </div>
+
+        <PromptDialog
+          open={rejecting}
+          title={`${request.code} 반려`}
+          description="사유는 의뢰자 코멘트 스레드로 전달됩니다."
+          fields={[{ name: 'reason', label: '반려 사유', placeholder: '예) 요청하신 부피가 1회 제조 한도를 넘습니다' }]}
+          confirmLabel="반려"
+          confirmVariant="deviation"
+          onCancel={() => setRejecting(false)}
+          onConfirm={async (v) => {
+            await rejectRequest(request.id, v.reason ?? '');
+            setRejecting(false);
+            onDone();
+          }}
+        />
       </div>
     </>
   );
