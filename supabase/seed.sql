@@ -1,5 +1,6 @@
 -- Lab Guide — 시드 데이터
--- 원본: docs/seed-data.md  ·  기준 시각: 2026-07-20 (월) 14:35
+-- 원본: docs/seed-data.md
+-- 모든 시각은 실행 시점(now()) 기준 상대값이다. 시연할 때마다 방금 벌어진 일처럼 보인다.
 --
 -- 실행 순서: 0001_schema.sql → 0002_rls.sql → 이 파일
 -- 재실행 가능하도록 앞에서 기존 데이터를 지운다.
@@ -69,18 +70,22 @@ insert into instruments (id, kind, provides) values
   ('BAL-204',   '전자저울 (±0.1 mg)', array['mass']);
 
 -- ─── 시약 로트 ─────────────────────────────────────────────────
-insert into reagent_lots (reagent, lot_number, expires_on, note) values
-  ('NaCl',            'NACL-2607', '2027-08-31', null),
-  ('NaCl',            'NACL-2506', '2026-07-18', 'DEV-03 시나리오용 — 의도적 만료'),
-  ('KCl',             'KCL-2611',  '2026-11-30', null),
-  ('Na2HPO4',         'NAHP-2703', '2027-03-30', null),
-  ('KH2PO4',          'KHP-2701',  '2027-01-15', null),
-  ('Tris base',       'TRIS-2707', '2027-07-15', null),
-  ('빙초산',           'AA-2705',   '2027-05-30', null),
-  ('Na2EDTA·2H2O',    'EDTA-2612', '2026-12-31', '분말'),
-  ('HEPES',           'HEP-2704',  '2027-04-30', null),
-  ('진한 HCl',         'HCL-2709',  '2027-09-30', '적정 시약 — 투입량은 결과로 기록'),
-  ('5 M NaOH',        'NAOH-2702', '2027-02-28', '적정 시약 — 투입량은 결과로 기록');
+insert into reagent_lots (reagent, lot_number, expires_on, note)
+select v.reagent, v.lot, (current_date + v.expires::interval)::date, v.note
+from (values
+  ('NaCl',         'NACL-2607', '13 months', null),
+  -- DEV-03 시나리오용. 항상 "이미 만료된" 로트로 보여야 한다.
+  ('NaCl',         'NACL-2506', '-15 days',  '의도적 만료 — DEV-03 시나리오'),
+  ('KCl',          'KCL-2611',  '4 months',  null),
+  ('Na2HPO4',      'NAHP-2703', '8 months',  null),
+  ('KH2PO4',       'KHP-2701',  '6 months',  null),
+  ('Tris base',    'TRIS-2707', '12 months', null),
+  ('빙초산',        'AA-2705',   '10 months', null),
+  ('Na2EDTA·2H2O', 'EDTA-2612', '5 months',  '분말'),
+  ('HEPES',        'HEP-2704',  '9 months',  null),
+  ('진한 HCl',      'HCL-2709',  '14 months', '적정 시약 — 투입량은 결과로 기록'),
+  ('5 M NaOH',     'NAOH-2702', '7 months',  '적정 시약 — 투입량은 결과로 기록')
+) as v(reagent, lot, expires, note);
 
 -- ─── 레시피 ────────────────────────────────────────────────────
 insert into buffer_recipes (name, target_params) values
@@ -125,23 +130,28 @@ join (values
 ) as v(recipe, seq, name, kind, reagent, amount, unit, note) on v.recipe = r.name;
 
 -- ─── 의뢰 ──────────────────────────────────────────────────────
+-- 모든 시각은 실행 시점(now())을 기준으로 한 상대값이다.
+-- 시안의 "2026-07-20(월) 14:35 = 지금"을 now()로 놓고 오프셋으로 옮겼다.
+-- 고정 날짜로 박아두면 시연할 때마다 "13일 전 접수"처럼 낡아 보인다.
+--
 -- 배치는 반드시 의뢰에서 나온다(수락 = 배치 생성). 6월 이력 배치도 원 의뢰가 필요해
 -- REQ-031~033을 함께 넣는다. docs/seed-data.md §6에서 "—"로 비워뒀던 부분이다.
 
 insert into requests (code, requester_id, recipe_id, request_type, status,
                       volume_ml, desired_completion_at, created_at)
 select v.code, p.id, r.id, 'new', v.status::request_status,
-       v.volume, v.desired::timestamptz, v.created::timestamptz
+       v.volume, now() + v.desired::interval, now() + v.created::interval
 from (values
-  ('REQ-031', '이연구', 'PBS 1X',      'accepted',  500,  '2026-06-24 13:00+09', '2026-06-23 10:20+09'),
-  ('REQ-032', '박실험', 'HEPES 1M',    'accepted',  500,  '2026-06-26 11:00+09', '2026-06-25 09:40+09'),
-  ('REQ-033', '김의뢰', 'TAE 50X',     'accepted', 1000,  '2026-06-30 15:00+09', '2026-06-29 14:05+09'),
-  ('REQ-039', '김의뢰', 'TAE 50X',     'accepted', 1000,  '2026-07-18 13:00+09', '2026-07-17 10:05+09'),
-  ('REQ-041', '김의뢰', 'Tris-HCl 1M', 'accepted', 1000,  '2026-07-21 10:00+09', '2026-07-19 08:40+09'),
-  ('REQ-042', '김의뢰', 'PBS 1X',      'accepted',  500,  '2026-07-21 16:00+09', '2026-07-20 09:12+09'),
-  ('REQ-043', '박실험', 'TAE 50X',     'accepted', 1000,  '2026-07-21 09:00+09', '2026-07-20 10:30+09'),
-  ('REQ-044', '이연구', 'Tris-HCl 1M', 'pending',   500,  '2026-07-22 09:00+09', '2026-07-19 16:05+09'),
-  ('REQ-045', '박실험', 'PBS 1X',      'pending',  1000,  '2026-07-22 14:00+09', '2026-07-20 13:35+09')
+  -- code       의뢰자     레시피          상태         부피   희망 완료          접수
+  ('REQ-031', '이연구', 'PBS 1X',      'accepted',  500, '-26 days',        '-27 days'),
+  ('REQ-032', '박실험', 'HEPES 1M',    'accepted',  500, '-24 days',        '-25 days'),
+  ('REQ-033', '김의뢰', 'TAE 50X',     'accepted', 1000, '-20 days',        '-21 days'),
+  ('REQ-039', '김의뢰', 'TAE 50X',     'accepted', 1000, '-2 days',         '-3 days 4 hours'),
+  ('REQ-041', '김의뢰', 'Tris-HCl 1M', 'accepted', 1000, '19 hours',        '-30 hours'),
+  ('REQ-042', '김의뢰', 'PBS 1X',      'accepted',  500, '1 day 1 hour',    '-5 hours 23 minutes'),
+  ('REQ-043', '박실험', 'TAE 50X',     'accepted', 1000, '18 hours',        '-4 hours 5 minutes'),
+  ('REQ-044', '이연구', 'Tris-HCl 1M', 'pending',   500, '1 day 18 hours',  '-22 hours 30 minutes'),
+  ('REQ-045', '박실험', 'PBS 1X',      'pending',  1000, '2 days',          '-1 hour')
 ) as v(code, requester, recipe, status, volume, desired, created)
 join profiles p        on p.name = v.requester
 join buffer_recipes r  on r.name = v.recipe;
@@ -150,23 +160,25 @@ join buffer_recipes r  on r.name = v.recipe;
 insert into requests (code, requester_id, recipe_id, request_type, status, parent_request_id,
                       volume_ml, desired_completion_at, reason, created_at)
 select 'REQ-046', p.id, r.id, 'remake', 'pending', parent.id,
-       1000, '2026-07-23 10:00+09',
+       1000, now() + interval '2 days 20 hours',
        '전기영동 진행 중 밴드 번짐 발생. 버퍼 전도도 이상 의심됩니다.',
-       '2026-07-20 14:10+09'
+       now() - interval '25 minutes'
 from profiles p, buffer_recipes r, requests parent
 where p.name = '김의뢰' and r.name = 'TAE 50X' and parent.code = 'REQ-039';
 
 -- ─── 배치 ──────────────────────────────────────────────────────
 insert into batches (lot_number, request_id, manufacturer_id, status, started_at, ended_at)
-select v.lot, req.id, m.id, v.status::batch_status, v.started::timestamptz, v.ended::timestamptz
+select v.lot, req.id, m.id, v.status::batch_status,
+       case when v.started is null then null else now() + v.started::interval end,
+       case when v.ended   is null then null else now() + v.ended::interval   end
 from (values
-  ('LOT-2606-08', 'REQ-031', 'completed', '2026-06-24 09:10+09', '2026-06-24 11:40+09'),
-  ('LOT-2606-09', 'REQ-032', 'completed', '2026-06-26 09:00+09', '2026-06-26 10:50+09'),
-  ('LOT-2606-10', 'REQ-033', 'completed', '2026-06-30 10:00+09', '2026-06-30 13:20+09'),
-  ('LOT-2607-01', 'REQ-039', 'completed', '2026-07-18 09:30+09', '2026-07-18 11:30+09'),
-  ('LOT-2607-02', 'REQ-041', 'deviation', '2026-07-19 14:20+09', null),
-  ('LOT-2607-03', 'REQ-042', 'running',   '2026-07-20 14:02+09', null),
-  ('LOT-2607-04', 'REQ-043', 'preparing', null, null)
+  ('LOT-2606-08', 'REQ-031', 'completed', '-26 days 4 hours',  '-26 days 2 hours'),
+  ('LOT-2606-09', 'REQ-032', 'completed', '-24 days 5 hours',  '-24 days 3 hours'),
+  ('LOT-2606-10', 'REQ-033', 'completed', '-20 days 4 hours',  '-20 days 1 hour'),
+  ('LOT-2607-01', 'REQ-039', 'completed', '-2 days 5 hours',   '-2 days 3 hours'),
+  ('LOT-2607-02', 'REQ-041', 'deviation', '-24 hours 15 min',  null),
+  ('LOT-2607-03', 'REQ-042', 'running',   '-33 minutes',       null),
+  ('LOT-2607-04', 'REQ-043', 'preparing', null,                null)
 ) as v(lot, req_code, status, started, ended)
 join requests req on req.code = v.req_code
 cross join lateral (select id from profiles where name = '최제조') m;
@@ -186,20 +198,22 @@ from batches b
 where b.id = ps.batch_id and b.status = 'completed';
 
 -- LOT-2607-03 — 공정 3/5 진행중. 콘솔 시안의 주인공.
-update process_steps ps set status = v.st::step_status, completed_at = v.done::timestamptz,
+update process_steps ps set status = v.st::step_status,
+       completed_at = case when v.done is null then null else now() + v.done::interval end,
        updated_by = (select id from profiles where name = '최제조')
-from (values (1,'done','2026-07-20 14:02+09'), (2,'done','2026-07-20 14:15+09'),
+from (values (1,'done','-33 minutes'), (2,'done','-20 minutes'),
              (3,'running',null), (4,'todo',null), (5,'todo',null)) as v(seq, st, done)
 where ps.seq = v.seq and ps.batch_id = (select id from batches where lot_number = 'LOT-2607-03');
 
 -- LOT-2607-02 — 4단계 pH 조정에서 편차.
-update process_steps ps set status = v.st::step_status, completed_at = v.done::timestamptz,
+update process_steps ps set status = v.st::step_status,
+       completed_at = case when v.done is null then null else now() + v.done::interval end,
        updated_by = (select id from profiles where name = '최제조')
-from (values (1,'done','2026-07-19 14:20+09'), (2,'done','2026-07-19 14:38+09'),
-             (3,'done','2026-07-19 14:55+09'), (4,'deviation',null), (5,'todo',null)) as v(seq, st, done)
+from (values (1,'done','-24 hours 15 min'), (2,'done','-23 hours 57 min'),
+             (3,'done','-23 hours 40 min'), (4,'deviation',null), (5,'todo',null)) as v(seq, st, done)
 where ps.seq = v.seq and ps.batch_id = (select id from batches where lot_number = 'LOT-2607-02');
 
--- 칭량 단계에 사용 시약 로트를 붙인다. DEV-03은 만료 로트를 대체한 건이다.
+-- 칭량 단계에 사용 시약 로트를 붙인다.
 update process_steps ps set reagent_lot_id = (select id from reagent_lots where lot_number = 'NACL-2607')
 where ps.seq = 1 and ps.batch_id in (select id from batches where lot_number in ('LOT-2607-03','LOT-2606-08'));
 
@@ -207,11 +221,11 @@ where ps.seq = 1 and ps.batch_id in (select id from batches where lot_number in 
 -- 자동 수집은 읽기 전용 + 출처 배지. pH에는 측정 온도가 함께 남는다.
 
 insert into measurements (process_step_id, label, value, unit, source, instrument_id, captured_at, captured_temp_c)
-select ps.id, v.label, v.val, v.unit, 'instrument', v.inst, v.at::timestamptz, v.temp
+select ps.id, v.label, v.val, v.unit, 'instrument', v.inst, now() + v.at::interval, v.temp
 from (values
-  ('LOT-2607-03', 3, 'pH',   7.41, '',    'pH-2000-A', '2026-07-20 14:31+09', 22.4),
-  ('LOT-2607-03', 3, '온도', 22.4, '°C',  'pH-2000-A', '2026-07-20 14:31+09', null),
-  ('LOT-2607-02', 4, 'pH',   8.12, '',    'pH-2000-A', '2026-07-19 15:10+09', 25.0)
+  ('LOT-2607-03', 3, 'pH',   7.41, '',    'pH-2000-A', '-4 minutes',       22.4),
+  ('LOT-2607-03', 3, '온도', 22.4, '°C',  'pH-2000-A', '-4 minutes',       null),
+  ('LOT-2607-02', 4, 'pH',   8.12, '',    'pH-2000-A', '-23 hours 25 min', 25.0)
 ) as v(lot, seq, label, val, unit, inst, at, temp)
 join batches b on b.lot_number = v.lot
 join process_steps ps on ps.batch_id = b.id and ps.seq = v.seq;
@@ -220,16 +234,17 @@ join process_steps ps on ps.batch_id = b.id and ps.seq = v.seq;
 insert into deviations (code, batch_id, process_step_id, description, cause, corrective_action,
                         status, created_by, created_at, resolved_at)
 select v.code, b.id, ps.id, v.descr, v.cause, v.action, v.status::deviation_status,
-       m.id, v.created::timestamptz, v.resolved::timestamptz
+       m.id, now() + v.created::interval,
+       case when v.resolved is null then null else now() + v.resolved::interval end
 from (values
   ('DEV-01', 'LOT-2607-02', 4, '측정 pH 8.12 — 허용 7.95–8.05 상한 이탈',
-   null, null, 'open', '2026-07-19 15:10+09', null),
-  ('DEV-03', 'LOT-2606-10', 1, 'NaCl 로트 NACL-2506 유효기간 만료(2026-07-18) 확인',
+   null, null, 'open', '-23 hours 25 min', null),
+  ('DEV-03', 'LOT-2606-10', 1, 'NaCl 로트 NACL-2506 유효기간 만료 확인',
    '시약 재고 회전 누락', '대체 로트 NACL-2607 사용. 규격 일치 확인 후 진행',
-   'resolved', '2026-06-30 10:12+09', '2026-06-30 10:35+09'),
+   'resolved', '-20 days 3 hours 48 min', '-20 days 3 hours 25 min'),
   ('DEV-04', 'LOT-2606-09', 2, '버퍼 동결로 용해 지연',
    '냉장 보관 온도 이탈', 'Heating Bath 37 °C 10분 가열 후 재시도',
-   'resolved', '2026-06-26 09:22+09', '2026-06-26 09:45+09')
+   'resolved', '-24 days 4 hours 38 min', '-24 days 4 hours 15 min')
 ) as v(code, lot, seq, descr, cause, action, status, created, resolved)
 join batches b on b.lot_number = v.lot
 join process_steps ps on ps.batch_id = b.id and ps.seq = v.seq
@@ -238,7 +253,7 @@ cross join lateral (select id from profiles where name = '최제조') m;
 -- ─── 배치 요약 · 결과 ──────────────────────────────────────────
 insert into batch_summaries (batch_id, content, confirmed_by, confirmed_at)
 select b.id, 'TAE 50X 1 L 제조 완료. 전 공정 6단계 편차 없이 진행. 멸균 여과 후 실온 보관.',
-       m.id, '2026-07-18 11:35+09'
+       m.id, now() - interval '2 days 2 hours 55 minutes'
 from batches b cross join lateral (select id from profiles where name = '최제조') m
 where b.lot_number = 'LOT-2607-01';
 
@@ -246,18 +261,20 @@ where b.lot_number = 'LOT-2607-01';
 -- REQ-046 재제조로 이어진다. 편차 없이 완결된 배치라 Deviation을 달지 않는다.
 insert into results (batch_id, manufacturer_signed_by, manufacturer_signed_at,
                      client_review_status, client_signed_by, client_signed_at)
-select b.id, m.id, '2026-07-18 11:40+09', 'reviewed', c.id, '2026-07-18 14:05+09'
+select b.id, m.id, now() - interval '2 days 2 hours 50 minutes',
+       'reviewed', c.id, now() - interval '2 days 25 minutes'
 from batches b
 cross join lateral (select id from profiles where name = '최제조') m
 cross join lateral (select id from profiles where name = '김의뢰') c
 where b.lot_number = 'LOT-2607-01';
 
 insert into measurements (result_id, label, value, unit, source, instrument_id, captured_at, entered_by)
-select rs.id, v.label, v.val, v.unit, v.src::measurement_source, v.inst, v.at::timestamptz,
+select rs.id, v.label, v.val, v.unit, v.src::measurement_source, v.inst,
+       case when v.at is null then null else now() + v.at::interval end,
        case when v.src = 'manual' then (select id from profiles where name = '최제조') end
 from (values
-  ('pH',     8.28, '',       'instrument', 'pH-2000-A', '2026-07-18 11:18+09'),
-  ('전도도', 9.40, 'mS/cm',  'instrument', 'COND-500',  '2026-07-18 11:20+09'),
+  ('pH',     8.28, '',       'instrument', 'pH-2000-A', '-2 days 3 hours 12 min'),
+  ('전도도', 9.40, 'mS/cm',  'instrument', 'COND-500',  '-2 days 3 hours 10 min'),
   ('부피',   1000, 'mL',     'manual',     null,        null)
 ) as v(label, val, unit, src, inst, at)
 join batches b on b.lot_number = 'LOT-2607-01'
@@ -265,10 +282,10 @@ join results rs on rs.batch_id = b.id;
 
 -- ─── 코멘트 ────────────────────────────────────────────────────
 insert into comments (request_id, author_id, body, created_at)
-select r.id, p.id, v.body, v.at::timestamptz
+select r.id, p.id, v.body, now() + v.at::interval
 from (values
-  ('REQ-042', '김의뢰', '지난번보다 pH 허용범위 좁게 부탁드립니다', '2026-07-20 09:14+09'),
-  ('REQ-042', '최제조', '반영했습니다. ±0.05 이내로 관리했어요',    '2026-07-20 09:50+09')
+  ('REQ-042', '김의뢰', '지난번보다 pH 허용범위 좁게 부탁드립니다', '-5 hours 21 minutes'),
+  ('REQ-042', '최제조', '반영했습니다. ±0.05 이내로 관리했어요',    '-4 hours 45 minutes')
 ) as v(code, author, body, at)
 join requests r on r.code = v.code
 join profiles p on p.name = v.author;
