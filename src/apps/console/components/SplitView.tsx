@@ -1,34 +1,52 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
-interface SplitViewProps {
+/**
+ * 세로(744) 폭에서는 리스트와 상세를 나란히 둘 수 없다.
+ * 리스트 화면 → 상세 화면으로 전환하는 스택 구조다. 대시보드가 작업 진입점이라
+ * 대부분은 대시보드에서 상세로 바로 들어가고, 리스트는 둘러볼 때 쓴다.
+ */
+
+interface ListScreenProps {
   title: string;
   count?: number;
   filters?: ReactNode;
-  list: ReactNode;
-  detail: ReactNode;
+  children: ReactNode;
 }
 
-/**
- * 리스트 320pt + 상세 나머지. 아이패드 미니 가로 한 화면에 들어가야 하므로
- * 바깥은 스크롤하지 않고 각 열이 따로 스크롤한다.
- */
-export function SplitView({ title, count, filters, list, detail }: SplitViewProps) {
+export function ListScreen({ title, count, filters, children }: ListScreenProps) {
   return (
-    <>
-      <section
-        aria-label={title}
-        className="flex w-list shrink-0 flex-col border-r border-line bg-surface"
-      >
-        <header className="flex items-baseline justify-between border-b border-line px-5 py-3">
-          <h1 className="text-title">{title}</h1>
-          {count !== undefined && <span className="font-mono text-caption text-ink-soft">{count}</span>}
-        </header>
-        {filters && <div className="flex gap-2 border-b border-line px-5 py-2.5">{filters}</div>}
-        <div className="flex-1 overflow-y-auto p-3">{list}</div>
-      </section>
+    <section aria-label={title} className="flex flex-1 flex-col overflow-hidden bg-bench">
+      <header className="flex items-baseline justify-between border-b border-line bg-surface px-5 py-3">
+        <h1 className="text-title">{title}</h1>
+        {count !== undefined && <span className="font-mono text-caption text-ink-soft">{count}</span>}
+      </header>
+      {filters && (
+        <div className="flex gap-2 overflow-x-auto border-b border-line bg-surface px-5 py-2.5">{filters}</div>
+      )}
+      <div className="flex-1 overflow-y-auto p-4">{children}</div>
+    </section>
+  );
+}
 
-      <section className="flex flex-1 flex-col overflow-hidden bg-bench">{detail}</section>
-    </>
+interface DetailScreenProps {
+  /** 뒤로 가기 목적지와 라벨 */
+  back: { to: string; label: string };
+  children: ReactNode;
+}
+
+export function DetailScreen({ back, children }: DetailScreenProps) {
+  return (
+    <section className="flex flex-1 flex-col overflow-hidden bg-bench">
+      <Link
+        to={back.to}
+        className="flex min-h-touch items-center gap-1.5 border-b border-line bg-surface px-4 text-caption font-semibold text-ink-soft hover:text-ink"
+      >
+        <ArrowLeft aria-hidden className="size-4" /> {back.label}
+      </Link>
+      {children}
+    </section>
   );
 }
 
@@ -43,7 +61,7 @@ export function FilterChip({ active, onClick, children }: FilterChipProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`cursor-pointer whitespace-nowrap rounded-chip border px-3 py-1 text-caption transition-colors duration-150 ease-out ${
+      className={`min-h-9 cursor-pointer whitespace-nowrap rounded-chip border px-3.5 text-caption transition-colors duration-150 ease-out ${
         active ? 'border-ink bg-ink text-white' : 'border-line text-ink-soft hover:border-ink-soft'
       }`}
     >

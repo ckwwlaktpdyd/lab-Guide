@@ -4,12 +4,12 @@ import { RotateGuard } from '@shared/ui';
 import { fetchCounts, useSession } from '@shared/db';
 import { IconRail } from './components/IconRail';
 import { ConsoleHome } from './routes/ConsoleHome';
-import { RequestInbox } from './routes/RequestInbox';
-import { BatchWorkspace } from './routes/BatchWorkspace';
+import { RequestList, RequestDetailScreen } from './routes/RequestInbox';
+import { BatchList, BatchDetailScreen } from './routes/BatchWorkspace';
 
 /**
- * 제조자 콘솔 — 아이패드 미니 가로 전용(1133×744).
- * 한 화면에 들어가야 하므로 바깥은 스크롤하지 않고 각 열이 따로 스크롤한다.
+ * 제조자 콘솔 — 아이패드 미니 세로 전용(744×1133).
+ * 좌측 레일 72pt + 콘텐츠. 리스트 → 상세는 스택 전환이다.
  */
 export function ConsoleApp() {
   const { session, role, loading } = useSession();
@@ -45,9 +45,11 @@ export function ConsoleApp() {
       <IconRail pendingRequests={counts.pendingRequests} openDeviations={counts.openDeviations} />
       <Routes>
         <Route index element={<ConsoleHome />} />
-        <Route path="requests" element={<RequestInbox />} />
-        <Route path="batches" element={<BatchWorkspace />} />
-        <Route path="deviations" element={<BatchWorkspace initialFilter="deviation" />} />
+        <Route path="requests" element={<RequestList />} />
+        <Route path="requests/:id" element={<RequestDetailScreen />} />
+        <Route path="batches" element={<BatchList />} />
+        <Route path="batches/:id" element={<BatchDetailScreen />} />
+        <Route path="deviations" element={<BatchList initialFilter="deviation" />} />
         <Route path="*" element={<Navigate to="." replace />} />
       </Routes>
     </div>

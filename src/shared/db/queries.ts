@@ -55,6 +55,17 @@ const REQUEST_FIELDS = `
   parent:parent_request_id ( code, batches ( lot_number ) )
 `;
 
+export async function fetchRequest(id: string): Promise<RequestListItem> {
+  if (isMock) return mockConsole.fetchRequest(id);
+  const { data, error } = await supabase
+    .from('requests')
+    .select(REQUEST_FIELDS)
+    .eq('id', id)
+    .single<RequestListItem>();
+  if (error) throw error;
+  return data;
+}
+
 /** 의뢰함 — 수락 대기 건. 재제조가 위로 오도록 정렬한다. */
 export async function fetchPendingRequests(): Promise<RequestListItem[]> {
   if (isMock) return mockConsole.fetchPendingRequests();
@@ -90,6 +101,17 @@ const BATCH_FIELDS = `
     buffer_recipes ( name, target_params )
   )
 `;
+
+export async function fetchBatch(id: string): Promise<BatchListItem> {
+  if (isMock) return mockConsole.fetchBatch(id);
+  const { data, error } = await supabase
+    .from('batches')
+    .select(BATCH_FIELDS)
+    .eq('id', id)
+    .single<BatchListItem>();
+  if (error) throw error;
+  return data;
+}
 
 export async function fetchBatches(): Promise<BatchListItem[]> {
   if (isMock) return mockConsole.fetchBatches();

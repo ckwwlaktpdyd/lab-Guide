@@ -80,7 +80,7 @@ export function ConsoleHome() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Kpi
             Icon={Inbox}
             n={counts.pendingRequests}
@@ -105,7 +105,7 @@ export function ConsoleHome() {
           />
         </div>
 
-        <Card className="flex-1 p-4">
+        <Card className="p-4">
           <h2 className="text-body font-bold">처리 필요</h2>
           {!queue ? (
             <p className="mt-3 text-caption text-ink-dim">불러오는 중…</p>
@@ -190,7 +190,7 @@ function buildQueue(requests: RequestListItem[], batches: BatchListItem[]): Queu
         tone: r.request_type === 'remake' ? 'remake' : 'wait',
       },
       action: '검토',
-      to: '/console/requests',
+      to: `/console/requests/${r.id}`,
     });
   }
 
@@ -202,7 +202,7 @@ function buildQueue(requests: RequestListItem[], batches: BatchListItem[]): Queu
       detail: `${b.requests.buffer_recipes.name} · 편차 미해결`,
       badge: { label: '편차', tone: 'deviation' },
       action: '조치',
-      to: '/console/deviations',
+      to: `/console/batches/${b.id}?f=deviation`,
     });
   }
 
@@ -213,7 +213,7 @@ function buildQueue(requests: RequestListItem[], batches: BatchListItem[]): Queu
       code: b.lot_number,
       detail: `${b.requests.buffer_recipes.name} · 공정 진행중`,
       action: '계속',
-      to: '/console/batches',
+      to: `/console/batches/${b.id}`,
     });
   }
 

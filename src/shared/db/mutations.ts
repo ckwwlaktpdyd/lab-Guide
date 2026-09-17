@@ -16,11 +16,11 @@ function unwrap(error: { message: string; hint?: string | null } | null): void {
 }
 
 /** 수락 = 배치 생성. LOT 발번과 공정 단계 펼치기까지 한 번에 일어난다. */
-export async function acceptRequest(requestId: string): Promise<{ lot_number: string }> {
+export async function acceptRequest(requestId: string): Promise<{ id: string; lot_number: string }> {
   if (isMock) return mockConsole.acceptRequest(requestId);
   const { data, error } = await supabase
     .rpc('accept_request', { p_request_id: requestId })
-    .returns<{ lot_number: string }>()
+    .returns<{ id: string; lot_number: string }>()
     .single();
   unwrap(error);
   return data!;

@@ -27,7 +27,7 @@ export default {
       spacing: {
         touch: `${consoleLayout.touchTarget}px`,
         rail: `${consoleLayout.railWidth}px`,
-        list: `${consoleLayout.listWidth}px`,
+        'rail-item': `${consoleLayout.railTarget}px`,
       },
     },
   },

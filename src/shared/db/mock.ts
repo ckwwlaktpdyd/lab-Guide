@@ -444,6 +444,17 @@ export const mockConsole = {
         .sort((a, b) => b.created_at.localeCompare(a.created_at)),
     );
   },
+  async fetchBatch(id: string): Promise<BatchListItem> {
+    const b = (await this.fetchBatches()).find((x) => x.id === id);
+    if (!b) throw new Error('배치를 찾을 수 없습니다');
+    return b;
+  },
+  async fetchRequest(id: string): Promise<RequestListItem> {
+    const all = await this.fetchPendingRequests();
+    const r = all.find((x) => x.id === id);
+    if (!r) throw new Error('대기중인 의뢰가 아닙니다');
+    return r;
+  },
   fetchBatches(): Promise<BatchListItem[]> {
     return delay(
       rows
@@ -524,7 +535,7 @@ export const mockConsole = {
       created_at: new Date().toISOString(), process_steps: steps(key, `b-${n}`, [], 0),
       batch_summaries: null, result: null, inquiries: [],
     };
-    return delay({ lot_number: lot });
+    return delay({ id: `b-${n}`, lot_number: lot });
   },
   rejectRequest(requestId: string, reason: string) {
     const r = rows.find((x) => x.detail.id === requestId);

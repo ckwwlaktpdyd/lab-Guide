@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Lock, MessageCircleQuestion, RotateCcw } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ChevronRight, Lock, MessageCircleQuestion, RotateCcw } from 'lucide-react';
 import {
   Button,
   Card,
@@ -16,6 +17,7 @@ import {
   REMEASURE_LIMIT,
   askClient,
   completeStep,
+  fetchBatch,
   fetchBatchDeviations,
   fetchBatchInquiries,
   fetchBatches,
@@ -32,7 +34,7 @@ import {
   type RecipeTargetParams,
   type StepMeasurement,
 } from '@shared/db';
-import { EmptyDetail, FilterChip, SplitView } from '../components/SplitView';
+import { DetailScreen, FilterChip, ListScreen } from '../components/SplitView';
 import { PrepTab } from '../components/PrepTab';
 
 /**
@@ -77,24 +79,27 @@ const md = new Intl.DateTimeFormat('ko-KR', {
 
 type Filter = 'active' | 'preparing' | 'completed' | 'deviation';
 
-export function BatchWorkspace({ initialFilter }: { initialFilter?: Filter } = {}) {
+const FILTERS: Filter[] = ['active', 'deviation', 'preparing', 'completed'];
+const FILTER_LABEL: Record<Filter, string> = {
+  active: '진행중',
+  deviation: '편차',
+  preparing: '대기',
+  completed: '완료',
+};
+
+/** 배치 목록. 필터는 URL(?f=)에 두어 상세에서 돌아와도 유지된다. */
+export function BatchList({ initialFilter }: { initialFilter?: Filter } = {}) {
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [batches, setBatches] = useState<BatchListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilterState] = useState<Filter>(initialFilter ?? 'active');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // 사용자가 필터를 바꾸면 선택을 푼다. 상태 변화로 배치가 필터에서 빠질 때만 필터가 선택을 따라간다.
-  const setFilter = (f: Filter) => {
-    setFilterState(f);
-    setSelectedId(null);
-  };
+  const filter = (params.get('f') as Filter | null) ?? initialFilter ?? 'active';
 
-  const reload = useCallback(() => {
+  useEffect(() => {
     fetchBatches()
       .then(setBatches)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
-
-  useEffect(reload, [reload]);
 
   const visible = useMemo(() => {
     if (!batches) return [];
@@ -105,80 +110,80 @@ export function BatchWorkspace({ initialFilter }: { initialFilter?: Filter } = {
     return batches.filter((b) => b.status === 'completed');
   }, [batches, filter]);
 
-  // 선택은 필터와 무관하게 유지한다. 준비 → 공정 시작으로 상태가 바뀌어 지금 필터에서
-  // 빠지면, 필터를 그 배치가 있는 쪽으로 옮긴다. 시작 직후 화면을 잃지 않기 위해서다.
-  const selected =
-    (batches ?? []).find((b) => b.id === selectedId) ?? visible[0] ?? null;
-  useEffect(() => {
-    if (!selected) return;
-    // 자동 선택(visible[0])도 고정한다. 그래야 상태가 바뀌어도 붙잡을 id가 있다.
-    if (selectedId !== selected.id) setSelectedId(selected.id);
-    if (!visible.some((b) => b.id === selected.id))
-      setFilterState(
-        selected.status === 'preparing' ? 'preparing' : selected.status === 'completed' ? 'completed' : 'active',
-      );
-  }, [selected, selectedId, visible]);
-
   return (
-    <SplitView
+    <ListScreen
       title="배치"
       count={batches?.length}
-      filters={
-        <>
-          <FilterChip active={filter === 'active'} onClick={() => setFilter('active')}>
-            진행중
-          </FilterChip>
-          <FilterChip active={filter === 'deviation'} onClick={() => setFilter('deviation')}>
-            편차
-          </FilterChip>
-          <FilterChip active={filter === 'preparing'} onClick={() => setFilter('preparing')}>
-            대기
-          </FilterChip>
-          <FilterChip active={filter === 'completed'} onClick={() => setFilter('completed')}>
-            완료
-          </FilterChip>
-        </>
-      }
-      list={
-        error ? (
-          <p role="alert" className="p-2 text-caption text-phenol-pink">
-            {error}
-          </p>
-        ) : !batches ? (
-          <p className="p-2 text-caption text-ink-dim">불러오는 중…</p>
-        ) : visible.length === 0 ? (
-          <p className="p-2 text-caption text-ink-dim">해당 상태의 배치가 없습니다.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {visible.map((b) => (
+      filters={FILTERS.map((f) => (
+        <FilterChip key={f} active={filter === f} onClick={() => setParams({ f })}>
+          {FILTER_LABEL[f]}
+        </FilterChip>
+      ))}
+    >
+      {error ? (
+        <p role="alert" className="text-caption text-phenol-pink">
+          {error}
+        </p>
+      ) : !batches ? (
+        <p className="text-caption text-ink-dim">불러오는 중…</p>
+      ) : visible.length === 0 ? (
+        <p className="text-caption text-ink-dim">해당 상태의 배치가 없습니다.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {visible.map((b) => (
               <li key={b.id}>
                 <Card
                   as="button"
-                  selected={selected?.id === b.id}
-                  onClick={() => setSelectedId(b.id)}
-                  className="w-full cursor-pointer p-3 text-left"
+                  onClick={() => navigate(`/console/batches/${b.id}?f=${filter}`)}
+                  className="flex min-h-touch w-full cursor-pointer items-center gap-3 p-4 text-left"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <DataValue emphasis>{b.lot_number}</DataValue>
-                    <StatusBadge tone={toneFor[b.status]}>{BATCH_STATUS_LABEL[b.status]}</StatusBadge>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <DataValue emphasis>{b.lot_number}</DataValue>
+                      <StatusBadge tone={toneFor[b.status]}>{BATCH_STATUS_LABEL[b.status]}</StatusBadge>
+                    </div>
+                    <p className="mt-1 text-caption text-ink-soft">
+                      {b.requests.buffer_recipes.name} · {b.requests.profiles.name} · 희망{' '}
+                      {md.format(new Date(b.requests.desired_completion_at))}
+                    </p>
                   </div>
-                  <p className="mt-1.5 text-caption text-ink-soft">
-                    {b.requests.buffer_recipes.name} · {b.requests.profiles.name}
-                  </p>
+                  <ChevronRight aria-hidden className="size-5 shrink-0 text-ink-dim" />
                 </Card>
               </li>
-            ))}
-          </ul>
-        )
-      }
-      detail={
-        selected ? (
-          <BatchDetail batch={selected} onChanged={reload} />
-        ) : (
-          <EmptyDetail>배치를 선택하세요</EmptyDetail>
-        )
-      }
-    />
+          ))}
+        </ul>
+      )}
+    </ListScreen>
+  );
+}
+
+/** 배치 상세 화면 — 목록에서 한 단계 들어온다. */
+export function BatchDetailScreen() {
+  const { id = '' } = useParams();
+  const [params] = useSearchParams();
+  const [batch, setBatch] = useState<BatchListItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(() => {
+    fetchBatch(id)
+      .then(setBatch)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+  }, [id]);
+  useEffect(reload, [reload]);
+
+  const f = params.get('f');
+  return (
+    <DetailScreen back={{ to: `/console/batches${f ? `?f=${f}` : ''}`, label: '배치 목록' }}>
+      {error ? (
+        <p role="alert" className="p-5 text-caption text-phenol-pink">
+          {error}
+        </p>
+      ) : !batch ? (
+        <p className="p-5 text-caption text-ink-dim">불러오는 중…</p>
+      ) : (
+        <BatchDetail batch={batch} onChanged={reload} />
+      )}
+    </DetailScreen>
   );
 }
 

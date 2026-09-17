@@ -74,13 +74,18 @@ export const fontSize = {
   kpi: ['32px', { lineHeight: '1.05', fontWeight: '700' }],
 } satisfies Record<string, FontSizeEntry>;
 
-/** 제조자 콘솔 스플릿뷰 실측 폭 — docs/ui-rules.md §4 */
+/**
+ * 제조자 콘솔 — 아이패드 미니 세로(744×1133) 전용.
+ * 폭이 좁아 리스트·상세를 나란히 둘 수 없다. 리스트 → 상세는 화면 전환(스택)이고,
+ * 다크 아이콘 레일은 72pt로 좁혀 왼쪽에 유지한다.
+ */
 export const consoleLayout = {
-  /** 아이패드 미니 가로 */
-  viewport: { width: 1133, height: 744 },
-  railWidth: 88,
-  listWidth: 320,
-  detailWidth: 730,
+  viewport: { width: 744, height: 1133 },
+  railWidth: 80,
+  /** 레일을 뺀 콘텐츠 폭 */
+  contentWidth: 744 - 80,
   /** 터치 타겟 최소 */
   touchTarget: 44,
+  /** 레일 항목 — 손에 들고 엄지로 누르므로 최소보다 넉넉히 */
+  railTarget: 56,
 } as const;

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ChevronRight, RotateCcw } from 'lucide-react';
 import {
   Button,
   Card,
@@ -13,13 +14,14 @@ import {
   REQUEST_TYPE_LABEL,
   acceptRequest,
   fetchPendingRequests,
+  fetchRequest,
   fetchResultMeasurementsByLot,
   type RequestListItem,
   type RequestType,
   type ResultMeasurement,
   rejectRequest,
 } from '@shared/db';
-import { EmptyDetail, FilterChip, SplitView } from '../components/SplitView';
+import { DetailScreen, FilterChip, ListScreen } from '../components/SplitView';
 
 type Filter = 'all' | 'new' | 'remake';
 
@@ -45,19 +47,21 @@ function since(iso: string): string {
   return `${Math.round(hours / 24)}일 전`;
 }
 
-export function RequestInbox() {
+const FILTER_LABEL: Record<Filter, string> = { all: '전체', new: '신규', remake: '재제조' };
+
+/** 의뢰함 목록. 필터는 URL(?f=)에 둔다. */
+export function RequestList() {
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [items, setItems] = useState<RequestListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>('all');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const filter = (params.get('f') as Filter | null) ?? 'all';
 
-  const reload = useCallback(() => {
+  useEffect(() => {
     fetchPendingRequests()
       .then(setItems)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
-
-  useEffect(reload, [reload]);
 
   const visible = useMemo(() => {
     if (!items) return [];
@@ -66,71 +70,96 @@ export function RequestInbox() {
     return items.filter((r) => r.request_type !== 'remake');
   }, [items, filter]);
 
-  const selected = visible.find((r) => r.id === selectedId) ?? visible[0] ?? null;
-
   return (
-    <SplitView
+    <ListScreen
       title="의뢰함"
       count={items?.length}
-      filters={
-        <>
-          <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>
-            전체
-          </FilterChip>
-          <FilterChip active={filter === 'new'} onClick={() => setFilter('new')}>
-            신규
-          </FilterChip>
-          <FilterChip active={filter === 'remake'} onClick={() => setFilter('remake')}>
-            재제조
-          </FilterChip>
-        </>
-      }
-      list={
-        error ? (
-          <p role="alert" className="p-2 text-caption text-phenol-pink">
-            {error}
-          </p>
-        ) : !items ? (
-          <p className="p-2 text-caption text-ink-dim">불러오는 중…</p>
-        ) : visible.length === 0 ? (
-          <p className="p-2 text-caption text-ink-dim">대기중인 의뢰가 없습니다.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {visible.map((r) => (
-              <li key={r.id}>
-                <Card
-                  as="button"
-                  selected={selected?.id === r.id}
-                  onClick={() => setSelectedId(r.id)}
-                  className="w-full cursor-pointer p-3 text-left"
-                >
-                  <div className="flex items-center justify-between gap-2">
+      filters={(['all', 'new', 'remake'] as Filter[]).map((f) => (
+        <FilterChip key={f} active={filter === f} onClick={() => setParams({ f })}>
+          {FILTER_LABEL[f]}
+        </FilterChip>
+      ))}
+    >
+      {error ? (
+        <p role="alert" className="text-caption text-phenol-pink">
+          {error}
+        </p>
+      ) : !items ? (
+        <p className="text-caption text-ink-dim">불러오는 중…</p>
+      ) : visible.length === 0 ? (
+        <p className="text-caption text-ink-dim">대기중인 의뢰가 없습니다.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {visible.map((r) => (
+            <li key={r.id}>
+              <Card
+                as="button"
+                onClick={() => navigate(`/console/requests/${r.id}?f=${filter}`)}
+                className="flex min-h-touch w-full cursor-pointer items-center gap-3 p-4 text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
                     <DataValue emphasis>{r.code}</DataValue>
-                    <StatusBadge tone={toneFor[r.request_type]}>
-                      {REQUEST_TYPE_LABEL[r.request_type]}
-                    </StatusBadge>
+                    <StatusBadge tone={toneFor[r.request_type]}>{REQUEST_TYPE_LABEL[r.request_type]}</StatusBadge>
                   </div>
-                  <p className="mt-1.5 text-caption text-ink-soft">
+                  <p className="mt-1 text-caption text-ink-soft">
                     {r.recipe.name} · {r.requester.name} · {since(r.created_at)}
                   </p>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )
-      }
-      detail={
-        selected ? (
-          <RequestDetail request={selected} onDone={reload} />
-        ) : (
-          <EmptyDetail>의뢰를 선택하세요</EmptyDetail>
-        )
-      }
-    />
+                </div>
+                <ChevronRight aria-hidden className="size-5 shrink-0 text-ink-dim" />
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
+    </ListScreen>
   );
 }
 
-function RequestDetail({ request, onDone }: { request: RequestListItem; onDone: () => void }) {
+/** 의뢰 상세 화면. 수락하면 생성된 배치의 준비 탭으로 바로 간다. */
+export function RequestDetailScreen() {
+  const { id = '' } = useParams();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [request, setRequest] = useState<RequestListItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRequest(id)
+      .then(setRequest)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+  }, [id]);
+
+  const f = params.get('f');
+  const backTo = `/console/requests${f ? `?f=${f}` : ''}`;
+  return (
+    <DetailScreen back={{ to: backTo, label: '의뢰함' }}>
+      {error ? (
+        <p role="alert" className="p-5 text-caption text-phenol-pink">
+          {error}
+        </p>
+      ) : !request ? (
+        <p className="p-5 text-caption text-ink-dim">불러오는 중…</p>
+      ) : (
+        <RequestDetail
+          request={request}
+          onAccepted={(batchId) => navigate(`/console/batches/${batchId}`)}
+          onRejected={() => navigate(backTo)}
+        />
+      )}
+    </DetailScreen>
+  );
+}
+
+function RequestDetail({
+  request,
+  onAccepted,
+  onRejected,
+}: {
+  request: RequestListItem;
+  onAccepted: (batchId: string) => void;
+  onRejected: () => void;
+}) {
   const [rejecting, setRejecting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -223,8 +252,8 @@ function RequestDetail({ request, onDone }: { request: RequestListItem; onDone: 
               setError(null);
               acceptRequest(request.id)
                 .then((b) => {
-                  setToast(`배치 ${b.lot_number} 생성됨 — 배치 탭에서 이어서 작업하세요`);
-                  onDone();
+                  setToast(`배치 ${b.lot_number} 생성됨 — 준비 체크로 이동합니다`);
+                  setTimeout(() => onAccepted(b.id), 600);
                 })
                 .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
                 .finally(() => setBusy(false));
@@ -248,7 +277,7 @@ function RequestDetail({ request, onDone }: { request: RequestListItem; onDone: 
           onConfirm={async (v) => {
             await rejectRequest(request.id, v.reason ?? '');
             setRejecting(false);
-            onDone();
+            onRejected();
           }}
         />
       </div>

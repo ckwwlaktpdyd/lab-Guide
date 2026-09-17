@@ -16,7 +16,8 @@ interface IconRailProps {
 }
 
 /**
- * 다크 아이콘 레일 88pt. 풀 사이드바 대신 아이콘 레일을 쓰는 이유는
+ * 다크 아이콘 레일 80pt, 항목 56pt. 세로로 손에 들고 엄지로 누르므로 최소 44pt보다 넉넉히 잡는다.
+ * 세로(744) 폭에서도 콘텐츠 664pt를 남긴다. 풀 사이드바 대신 아이콘 레일을 쓰는 이유는
  * 콘텐츠 폭 확보 + 장갑 착용 시 큰 타겟이 유리하기 때문이다(docs/ui-rules.md §4).
  */
 export function IconRail({ pendingRequests, openDeviations }: IconRailProps) {
@@ -34,7 +35,7 @@ export function IconRail({ pendingRequests, openDeviations }: IconRailProps) {
       className="flex w-rail shrink-0 flex-col items-center gap-2 bg-ink py-4"
     >
       {/* 브랜드 마크 — 그라디언트가 허용되는 두 곳 중 하나 */}
-      <div className="mb-3 size-11 rounded-[26%] bg-ph-mark" aria-hidden />
+      <div className="mb-3 size-10 rounded-[26%] bg-ph-mark" aria-hidden />
 
       {items.map(({ to, label, Icon, badge, disabled }) => (
         <NavLink
@@ -45,7 +46,7 @@ export function IconRail({ pendingRequests, openDeviations }: IconRailProps) {
           onClick={(e) => disabled && e.preventDefault()}
           className={({ isActive }) =>
             [
-              'relative flex size-touch flex-col items-center justify-center gap-1 rounded-[24%]',
+              'relative flex size-rail-item flex-col items-center justify-center gap-1 rounded-[22%]',
               'text-[11px] font-semibold transition-colors duration-150 ease-out',
               disabled
                 ? 'cursor-not-allowed text-white/25'
@@ -63,10 +64,10 @@ export function IconRail({ pendingRequests, openDeviations }: IconRailProps) {
                   className="absolute -left-2 top-1/4 h-1/2 w-[3px] rounded-sm bg-indicator-teal"
                 />
               )}
-              <Icon aria-hidden className="size-5" />
+              <Icon aria-hidden className="size-6" />
               {label}
               {badge !== undefined && badge > 0 && (
-                <span className="absolute -right-1 -top-1 flex size-[18px] items-center justify-center rounded-full bg-phenol-pink font-mono text-[10px] text-white">
+                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-phenol-pink font-mono text-[11px] text-white">
                   {badge}
                 </span>
               )}
