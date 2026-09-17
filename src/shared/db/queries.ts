@@ -2,8 +2,10 @@ import { supabase } from './client';
 import { isMock, mockClient, mockConsole } from './mock';
 import type {
   BatchStatus,
+  CalibrationKind,
   ClientReviewStatus,
   DeviationStatus,
+  InquiryDecision,
   MeasurementSource,
   ReagentKind,
   RequestStatus,
@@ -110,6 +112,9 @@ export interface StepMeasurement {
   captured_at: string | null;
   captured_temp_c: number | null;
   override_reason: string | null;
+  /** 재측량 회차 */
+  attempt: number;
+  calibration_id: string | null;
 }
 
 export interface BatchStep {
@@ -138,11 +143,12 @@ export async function fetchBatchSteps(batchId: string): Promise<BatchStep[]> {
       id, seq, status, completed_at, note,
       recipe_steps ( name, kind, reagent, target_amount, target_unit, note ),
       measurements ( id, label, value, unit, source, instrument_id, captured_at,
-                     captured_temp_c, override_reason )
+                     captured_temp_c, override_reason, attempt, calibration_id )
     `,
     )
     .eq('batch_id', batchId)
     .order('seq')
+    .order('attempt', { referencedTable: 'measurements' })
     .returns<BatchStep[]>();
   if (error) throw error;
   return data;
@@ -241,6 +247,8 @@ export interface MyRequest {
     status: BatchStatus;
     process_steps: { status: StepStatus }[];
     deviations: { status: DeviationStatus }[];
+    /** 답을 기다리는 제조자 확인 요청 — 조치 필요 */
+    inquiries: { decision: InquiryDecision | null }[];
     result: {
       manufacturer_signed_at: string | null;
       client_review_status: ClientReviewStatus | null;
@@ -260,6 +268,7 @@ export async function fetchMyRequests(): Promise<MyRequest[]> {
         id, lot_number, status,
         process_steps ( status ),
         deviations ( status ),
+        inquiries ( decision ),
         result:results ( manufacturer_signed_at, client_review_status )
       )
     `,
@@ -307,6 +316,15 @@ export interface RequestDetailData {
       }[];
     }[];
     batch_summaries: { content: string; confirmed_at: string | null } | null;
+    inquiries: {
+      id: string;
+      process_step_id: string | null;
+      question: string;
+      asked_at: string;
+      decision: InquiryDecision | null;
+      answer: string | null;
+      answered_at: string | null;
+    }[];
     result: {
       id: string;
       manufacturer_signed_at: string | null;
@@ -337,6 +355,7 @@ export async function fetchRequestDetail(id: string): Promise<RequestDetailData>
           deviations ( id, code, description, cause, corrective_action, status, created_at, resolved_at )
         ),
         batch_summaries ( content, confirmed_at ),
+        inquiries ( id, process_step_id, question, asked_at, decision, answer, answered_at ),
         result:results (
           id, manufacturer_signed_at, client_review_status, client_signed_at, revision_note,
           manufacturer_signed_by:profiles!results_manufacturer_signed_by_fkey ( name ),
@@ -350,6 +369,103 @@ export async function fetchRequestDetail(id: string): Promise<RequestDetailData>
     .order('seq', { referencedTable: 'batches.process_steps' })
     .order('created_at', { referencedTable: 'comments' })
     .single<RequestDetailData>();
+  if (error) throw error;
+  return data;
+}
+
+// ─── 준비 체크 · 확인 요청 ────────────────────────────────────────
+
+export interface PrepInstrument {
+  id: string;
+  kind: string;
+  /** 마지막 교정 기록. 없으면 null */
+  last: { kind: CalibrationKind; performed_at: string; performed_by: { name: string } } | null;
+}
+
+export interface PrepReagent {
+  reagent: { id: string; seq: number; name: string; amount: number | null; unit: string | null; kind: ReagentKind };
+  /** 같은 시약명의 로트 후보. 만료 여부는 화면이 expires_on으로 판정한다 */
+  lots: { id: string; lot_number: string; expires_on: string; note: string | null }[];
+  chosen: { reagent_lot_id: string; confirmed_at: string } | null;
+}
+
+export interface BatchPrep {
+  batch: {
+    id: string;
+    lot_number: string;
+    status: BatchStatus;
+    created_at: string;
+    sop_confirmed_at: string | null;
+    lot_confirmed_at: string | null;
+    prep_completed_at: string | null;
+  };
+  instruments: PrepInstrument[];
+  reagents: PrepReagent[];
+  /** SOP 확인 화면에 띄울 레시피 단계·주의사항 */
+  steps: { seq: number; name: string; note: string | null }[];
+}
+
+export async function fetchBatchPrep(batchId: string): Promise<BatchPrep> {
+  if (isMock) return mockConsole.fetchBatchPrep(batchId);
+
+  const { data: batch, error: e1 } = await supabase
+    .from('batches')
+    .select(
+      `id, lot_number, status, created_at, sop_confirmed_at, lot_confirmed_at, prep_completed_at,
+       requests!inner ( recipe_id )`,
+    )
+    .eq('id', batchId)
+    .single<BatchPrep['batch'] & { requests: { recipe_id: string } }>();
+  if (e1) throw e1;
+
+  const [inst, cal, rr, lots, br, rs] = await Promise.all([
+    supabase.from('instruments').select('id, kind').order('id'),
+    supabase
+      .from('instrument_calibrations')
+      .select('instrument_id, kind, performed_at, performed_by:profiles!instrument_calibrations_performed_by_fkey ( name )')
+      .order('performed_at', { ascending: false })
+      .returns<{ instrument_id: string; kind: CalibrationKind; performed_at: string; performed_by: { name: string } }[]>(),
+    supabase.from('recipe_reagents').select('id, seq, name, amount, unit, kind').eq('recipe_id', batch.requests.recipe_id).order('seq'),
+    supabase.from('reagent_lots').select('id, reagent, lot_number, expires_on, note').order('expires_on', { ascending: false }),
+    supabase.from('batch_reagents').select('recipe_reagent_id, reagent_lot_id, confirmed_at').eq('batch_id', batchId),
+    supabase.from('recipe_steps').select('seq, name, note').eq('recipe_id', batch.requests.recipe_id).order('seq'),
+  ]);
+  for (const r of [inst, cal, rr, lots, br, rs]) if (r.error) throw r.error;
+
+  const lastBy = new Map<string, NonNullable<PrepInstrument['last']>>();
+  for (const c of cal.data ?? []) if (!lastBy.has(c.instrument_id)) lastBy.set(c.instrument_id, c);
+
+  return {
+    batch,
+    instruments: (inst.data ?? []).map((i) => ({ id: i.id, kind: i.kind, last: lastBy.get(i.id) ?? null })),
+    reagents: (rr.data ?? []).map((r) => ({
+      reagent: r,
+      lots: (lots.data ?? []).filter((l) => l.reagent === r.name),
+      chosen: (br.data ?? []).find((b) => b.recipe_reagent_id === r.id) ?? null,
+    })),
+    steps: rs.data ?? [],
+  };
+}
+
+export interface BatchInquiry {
+  id: string;
+  question: string;
+  asked_at: string;
+  decision: InquiryDecision | null;
+  answer: string | null;
+  answered_at: string | null;
+  process_steps: { seq: number; recipe_steps: { name: string } } | null;
+}
+
+export async function fetchBatchInquiries(batchId: string): Promise<BatchInquiry[]> {
+  if (isMock) return mockConsole.fetchBatchInquiries(batchId);
+  const { data, error } = await supabase
+    .from('inquiries')
+    .select(`id, question, asked_at, decision, answer, answered_at,
+             process_steps ( seq, recipe_steps ( name ) )`)
+    .eq('batch_id', batchId)
+    .order('asked_at', { ascending: false })
+    .returns<BatchInquiry[]>();
   if (error) throw error;
   return data;
 }

@@ -16,7 +16,9 @@
 
 import type {
   BatchStatus,
+  CalibrationKind,
   ClientReviewStatus,
+  InquiryDecision,
   DeviationStatus,
   MeasurementSource,
   ReagentKind,
@@ -104,7 +106,60 @@ export type Batch = {
   status: BatchStatus;
   started_at: string | null;
   ended_at: string | null;
+  /** 준비 체크 ② SOP 확인 */
+  sop_confirmed_at: string | null;
+  sop_confirmed_by: string | null;
+  /** 준비 체크 ④ 제조 LOT 확인 */
+  lot_confirmed_at: string | null;
+  lot_confirmed_by: string | null;
+  /** 4단계 모두 끝나 공정을 시작한 시각 */
+  prep_completed_at: string | null;
   created_at: string;
+};
+
+/** 레시피의 시약을 행으로. 로트를 시약별로 고르려면 문자열이 아니라 행이어야 한다. */
+export type RecipeReagent = {
+  id: string;
+  recipe_id: string;
+  seq: number;
+  name: string;
+  amount: number | null;
+  unit: string | null;
+  kind: 'weighed' | 'titrated';
+};
+
+/** 이 배치에서 각 시약에 고른 로트 */
+export type BatchReagent = {
+  id: string;
+  batch_id: string;
+  recipe_reagent_id: string;
+  reagent_lot_id: string;
+  confirmed_by: string;
+  confirmed_at: string;
+};
+
+/** 교정 이력 — 기구 사용기록서의 디지털판 */
+export type InstrumentCalibration = {
+  id: string;
+  instrument_id: string;
+  kind: CalibrationKind;
+  performed_by: string;
+  performed_at: string;
+  note: string | null;
+};
+
+/** 공정 중 의뢰자 확인 요청. 보내면 배치가 waiting_client로 멈춘다. */
+export type Inquiry = {
+  id: string;
+  batch_id: string;
+  process_step_id: string | null;
+  question: string;
+  asked_by: string;
+  asked_at: string;
+  decision: InquiryDecision | null;
+  answer: string | null;
+  answered_by: string | null;
+  answered_at: string | null;
 };
 
 export type ProcessStep = {
@@ -135,6 +190,10 @@ export type Measurement = {
   entered_by: string | null;
   /** source='manual'이면 필수 — 감사 추적 */
   override_reason: string | null;
+  /** 한 단계 안 재측량 회차. 덮어쓰지 않고 행을 추가한다 */
+  attempt: number;
+  /** 어느 교정 아래에서 찍힌 값인지 */
+  calibration_id: string | null;
   created_at: string;
 };
 
@@ -210,6 +269,10 @@ export type Database = {
       batch_summaries: Table<BatchSummary>;
       results: Table<Result>;
       comments: Table<Comment>;
+      recipe_reagents: Table<RecipeReagent>;
+      batch_reagents: Table<BatchReagent>;
+      instrument_calibrations: Table<InstrumentCalibration>;
+      inquiries: Table<Inquiry>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -225,6 +288,27 @@ export type Database = {
         Returns: undefined;
       };
       next_lot_number: { Args: Record<string, never>; Returns: string };
+      record_calibration: {
+        Args: { p_instrument_id: string; p_kind: CalibrationKind; p_note?: string };
+        Returns: InstrumentCalibration;
+      };
+      confirm_sop: { Args: { p_batch_id: string }; Returns: undefined };
+      select_batch_reagent: {
+        Args: { p_batch_id: string; p_recipe_reagent_id: string; p_reagent_lot_id: string };
+        Returns: undefined;
+      };
+      confirm_lot: { Args: { p_batch_id: string }; Returns: undefined };
+      start_process: { Args: { p_batch_id: string }; Returns: undefined };
+      remeasure: { Args: { p_step_id: string; p_label: string }; Returns: Measurement };
+      override_measurement: {
+        Args: { p_step_id: string; p_label: string; p_value: number; p_reason: string };
+        Returns: Measurement;
+      };
+      ask_client: { Args: { p_step_id: string; p_question: string }; Returns: Inquiry };
+      answer_inquiry: {
+        Args: { p_inquiry_id: string; p_decision: InquiryDecision; p_answer?: string };
+        Returns: undefined;
+      };
       create_request: {
         Args: {
           p_request_type: RequestType;
@@ -247,6 +331,8 @@ export type Database = {
       client_review_status: ClientReviewStatus;
       measurement_source: MeasurementSource;
       reagent_kind: ReagentKind;
+      calibration_kind: CalibrationKind;
+      inquiry_decision: InquiryDecision;
     };
     CompositeTypes: { [_ in never]: never };
   };

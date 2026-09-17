@@ -21,6 +21,8 @@ export interface StageInput {
     manufacturer_signed_at: string | null;
     client_review_status: ClientReviewStatus | null;
   } | null;
+  /** 답을 기다리는 제조자 확인 요청이 있는가 */
+  openInquiry?: boolean;
 }
 
 export function clientStage(r: StageInput): ClientStage {
@@ -36,7 +38,7 @@ export function clientStage(r: StageInput): ClientStage {
  * 이 건들은 자기 상태 목록에도 그대로 있다.
  */
 export function needsAction(r: StageInput): boolean {
-  return clientStage(r) === 'review' || r.status === 'rejected';
+  return clientStage(r) === 'review' || r.status === 'rejected' || r.openInquiry === true;
 }
 
 /** 타임라인·스테퍼용 — 5단계 중 몇 번째인지 */

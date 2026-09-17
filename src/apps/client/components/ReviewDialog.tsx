@@ -1,12 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { RotateCcw, X } from 'lucide-react';
 import { Button, DataValue, InstrumentBadge, PromptDialog } from '@shared/ui';
-import {
-  requestRemake,
-  requestRevision,
-  signClientReview,
-  type RequestDetailData,
-} from '@shared/db';
+import { requestRemake, signClientReview, type RequestDetailData } from '@shared/db';
 
 const mdt = new Intl.DateTimeFormat('ko-KR', {
   month: 'numeric',
@@ -29,14 +24,15 @@ interface ReviewDialogProps {
  * 제조 결과 + 리뷰 액션. 인라인 패널이 아니라 모달이다 —
  * 검토 단계가 아닌 사용자에게 빈 영역을 보여주지 않기 위해서(docs/feedback-0914.md §2).
  *
- * 의뢰자 액션 3종: 리뷰 완료·서명 / 보완 요청 / 재제조 요청.
+ * 의뢰자 액션 2종: 리뷰 완료·서명 / 재제조 요청. "보완 요청"은 없다 —
+ * 버퍼는 이미 만들어졌으니 끝에서 보완할 게 없고 사실상 재제조다(현장 문답 09-17).
+ * 문제는 공정 중 의뢰자 확인 요청으로 잡는다.
  * 재제조는 새 배치를 만드는 무게가 다른 액션이라 구분선 아래 따로 둔다.
  */
 export function ReviewDialog({ open, data: r, readOnly, onClose, onChanged }: ReviewDialogProps) {
   const id = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [revising, setRevising] = useState(false);
   const [remaking, setRemaking] = useState(false);
   const [done, setDone] = useState<string | null>(null);
 
@@ -168,12 +164,9 @@ export function ReviewDialog({ open, data: r, readOnly, onClose, onChanged }: Re
               <p className="mt-6 text-caption text-ink-soft">
                 제조 결과를 확인했으며 이상이 없음을 서명합니다.
               </p>
-              <div className="mt-2 flex gap-2">
-                <Button variant="sign" touch className="flex-[2]" disabled={busy} onClick={() => void sign()}>
+              <div className="mt-2">
+                <Button variant="sign" touch className="w-full" disabled={busy} onClick={() => void sign()}>
                   {busy ? '서명 중…' : '리뷰 완료 · 서명'}
-                </Button>
-                <Button variant="ghost" touch className="flex-1" disabled={busy} onClick={() => setRevising(true)}>
-                  보완 요청
                 </Button>
               </div>
             </>
@@ -195,21 +188,6 @@ export function ReviewDialog({ open, data: r, readOnly, onClose, onChanged }: Re
           </p>
         </div>
       </div>
-
-      <PromptDialog
-        open={revising}
-        title="보완 요청"
-        description="제조자에게 재작업을 요청합니다. 무엇을 보완해야 하는지 남겨주세요."
-        fields={[{ name: 'note', label: '보완 요청 사유', placeholder: '예) 전도도 측정값이 기준 하한에 가깝습니다. 재측정 부탁드립니다' }]}
-        confirmLabel="보완 요청"
-        onCancel={() => setRevising(false)}
-        onConfirm={async (v) => {
-          if (!result) return;
-          await requestRevision(result.id, v.note ?? '');
-          setRevising(false);
-          onChanged();
-        }}
-      />
 
       <PromptDialog
         open={remaking}

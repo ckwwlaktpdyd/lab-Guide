@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Lock } from 'lucide-react';
+import { Lock, MessageCircleQuestion, RotateCcw } from 'lucide-react';
 import {
   Button,
   Card,
@@ -12,19 +12,28 @@ import {
 import {
   BATCH_STATUS_LABEL,
   DEVIATION_STATUS_LABEL,
+  INQUIRY_DECISION_LABEL,
+  REMEASURE_LIMIT,
+  askClient,
   completeStep,
   fetchBatchDeviations,
+  fetchBatchInquiries,
   fetchBatches,
   fetchBatchSteps,
+  overrideMeasurement,
   registerDeviation,
+  remeasure,
   resolveDeviation,
+  type BatchInquiry,
   type BatchDeviation,
   type BatchListItem,
   type BatchStatus,
   type BatchStep,
   type RecipeTargetParams,
+  type StepMeasurement,
 } from '@shared/db';
 import { EmptyDetail, FilterChip, SplitView } from '../components/SplitView';
+import { PrepTab } from '../components/PrepTab';
 
 /**
  * 규격 이탈 판정. 허용 범위를 벗어난 측정값은 정상값과 같은 색으로 두면 안 된다 —
@@ -53,6 +62,7 @@ const toneFor: Record<BatchStatus, BadgeTone> = {
   preparing: 'wait',
   running: 'running',
   deviation: 'deviation',
+  waiting_client: 'wait',
   completed: 'done',
 };
 
@@ -70,8 +80,13 @@ type Filter = 'active' | 'preparing' | 'completed' | 'deviation';
 export function BatchWorkspace({ initialFilter }: { initialFilter?: Filter } = {}) {
   const [batches, setBatches] = useState<BatchListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>(initialFilter ?? 'active');
+  const [filter, setFilterState] = useState<Filter>(initialFilter ?? 'active');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 사용자가 필터를 바꾸면 선택을 푼다. 상태 변화로 배치가 필터에서 빠질 때만 필터가 선택을 따라간다.
+  const setFilter = (f: Filter) => {
+    setFilterState(f);
+    setSelectedId(null);
+  };
 
   const reload = useCallback(() => {
     fetchBatches()
@@ -83,13 +98,26 @@ export function BatchWorkspace({ initialFilter }: { initialFilter?: Filter } = {
 
   const visible = useMemo(() => {
     if (!batches) return [];
-    if (filter === 'active') return batches.filter((b) => b.status === 'running' || b.status === 'deviation');
+    if (filter === 'active')
+      return batches.filter((b) => b.status === 'running' || b.status === 'deviation' || b.status === 'waiting_client');
     if (filter === 'deviation') return batches.filter((b) => b.status === 'deviation');
     if (filter === 'preparing') return batches.filter((b) => b.status === 'preparing');
     return batches.filter((b) => b.status === 'completed');
   }, [batches, filter]);
 
-  const selected = visible.find((b) => b.id === selectedId) ?? visible[0] ?? null;
+  // 선택은 필터와 무관하게 유지한다. 준비 → 공정 시작으로 상태가 바뀌어 지금 필터에서
+  // 빠지면, 필터를 그 배치가 있는 쪽으로 옮긴다. 시작 직후 화면을 잃지 않기 위해서다.
+  const selected =
+    (batches ?? []).find((b) => b.id === selectedId) ?? visible[0] ?? null;
+  useEffect(() => {
+    if (!selected) return;
+    // 자동 선택(visible[0])도 고정한다. 그래야 상태가 바뀌어도 붙잡을 id가 있다.
+    if (selectedId !== selected.id) setSelectedId(selected.id);
+    if (!visible.some((b) => b.id === selected.id))
+      setFilterState(
+        selected.status === 'preparing' ? 'preparing' : selected.status === 'completed' ? 'completed' : 'active',
+      );
+  }, [selected, selectedId, visible]);
 
   return (
     <SplitView
@@ -154,24 +182,28 @@ export function BatchWorkspace({ initialFilter }: { initialFilter?: Filter } = {
   );
 }
 
-type TabId = 'process' | 'deviations' | 'summary' | 'result';
+type TabId = 'prep' | 'process' | 'deviations' | 'summary' | 'result';
 
 function BatchDetail({ batch, onChanged }: { batch: BatchListItem; onChanged: () => void }) {
   const [steps, setSteps] = useState<BatchStep[] | null>(null);
   const [deviations, setDeviations] = useState<BatchDeviation[] | null>(null);
+  const [inquiries, setInquiries] = useState<BatchInquiry[] | null>(null);
   const [tab, setTab] = useState<TabId>('process');
 
   const refresh = useCallback(() => {
     void fetchBatchSteps(batch.id).then(setSteps);
     void fetchBatchDeviations(batch.id).then(setDeviations);
+    void fetchBatchInquiries(batch.id).then(setInquiries);
   }, [batch.id]);
 
   useEffect(() => {
     setSteps(null);
     setDeviations(null);
-    setTab('process');
+    setInquiries(null);
+    // 준비중이면 준비 탭에서 시작한다.
+    setTab(batch.status === 'preparing' ? 'prep' : 'process');
     refresh();
-  }, [batch.id, refresh]);
+  }, [batch.id, batch.status, refresh]);
 
   const after = useCallback(() => {
     refresh();
@@ -181,23 +213,27 @@ function BatchDetail({ batch, onChanged }: { batch: BatchListItem; onChanged: ()
   const done = steps?.filter((s) => s.status === 'done').length ?? 0;
   const total = steps?.length ?? 0;
   const processComplete = total > 0 && done === total;
+  const preparing = batch.status === 'preparing';
 
   /**
-   * 탭 잠금 — 워크플로우 순서를 화면이 강제한다.
-   * 공정 완료 전 요약·결과 비활성, 요약 확정 전 결과 비활성(spec §9).
-   * 요약 확정은 마일스톤 ④에서 붙이므로 지금은 공정 완료까지만 판정한다.
+   * 탭 잠금 사슬 — 워크플로우 순서를 화면이 강제한다.
+   * 준비 완료 전 공정 잠김 → 공정 완료 전 요약·결과 잠김 → 요약 확정 전 결과 잠김.
+   * 요약 확정 UI는 아직 없어 결과는 공정 완료 뒤에도 잠긴 채다.
    */
   const locked: Record<TabId, string | null> = {
-    process: null,
-    deviations: null,
+    prep: null,
+    process: preparing ? '준비 체크 4단계를 마치면 열립니다' : null,
+    deviations: preparing ? '공정 시작 후 열립니다' : null,
     summary: processComplete ? null : '공정을 모두 완료해야 열립니다',
     result: processComplete ? '배치 요약을 먼저 확정하세요' : '공정을 모두 완료해야 열립니다',
   };
 
   const target = batch.requests.buffer_recipes.target_params;
   const openCount = deviations?.filter((d) => d.status === 'open').length ?? 0;
+  const openInquiry = inquiries?.find((q) => q.decision === null) ?? null;
 
   const tabs: { id: TabId; label: string; suffix?: string }[] = [
+    { id: 'prep', label: '준비' },
     { id: 'process', label: '공정', suffix: total ? `${done}/${total}` : undefined },
     { id: 'deviations', label: '편차', suffix: `${deviations?.length ?? 0}` },
     { id: 'summary', label: '요약' },
@@ -213,6 +249,11 @@ function BatchDetail({ batch, onChanged }: { batch: BatchListItem; onChanged: ()
           </DataValue>
           <StatusBadge tone={toneFor[batch.status]}>{BATCH_STATUS_LABEL[batch.status]}</StatusBadge>
           {openCount > 0 && <StatusBadge tone="deviation">편차 {openCount}</StatusBadge>}
+          {openInquiry && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-badge bg-badge-amber-bg px-2 py-0.5 text-caption font-semibold text-badge-amber-fg">
+              <MessageCircleQuestion aria-hidden className="size-3.5" /> 의뢰자 답변 대기 중
+            </span>
+          )}
         </div>
         <p className="mt-1 font-mono text-caption text-ink-soft">
           {batch.requests.buffer_recipes.name}
@@ -263,7 +304,17 @@ function BatchDetail({ batch, onChanged }: { batch: BatchListItem; onChanged: ()
       </div>
 
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === 'process' && <ProcessTab steps={steps} target={target} onChanged={after} />}
+        {tab === 'prep' && <PrepTab batchId={batch.id} onStarted={after} />}
+        {tab === 'process' && (
+          <ProcessTab
+            steps={steps}
+            target={target}
+            waiting={openInquiry}
+            inquiries={inquiries ?? []}
+            onChanged={after}
+            onGoPrep={() => setTab('prep')}
+          />
+        )}
         {tab === 'deviations' && <DeviationTab deviations={deviations} onChanged={after} />}
       </div>
     </>
@@ -273,11 +324,17 @@ function BatchDetail({ batch, onChanged }: { batch: BatchListItem; onChanged: ()
 function ProcessTab({
   steps,
   target,
+  waiting,
+  inquiries,
   onChanged,
+  onGoPrep,
 }: {
   steps: BatchStep[] | null;
   target: RecipeTargetParams;
+  waiting: BatchInquiry | null;
+  inquiries: BatchInquiry[];
   onChanged: () => void;
+  onGoPrep: () => void;
 }) {
   if (!steps) return <p className="text-caption text-ink-dim">불러오는 중…</p>;
 
@@ -285,6 +342,7 @@ function ProcessTab({
     <ol className="flex flex-col">
       {steps.map((step) => {
         const isNow = step.status === 'running' || step.status === 'deviation';
+        const stepInquiries = inquiries.filter((q) => q.process_steps?.seq === step.seq);
         return (
           <li key={step.id}>
             <div className="flex items-center gap-3 py-2">
@@ -313,8 +371,15 @@ function ProcessTab({
               )}
             </div>
 
+            {/* 답을 받은 확인 요청은 해당 단계 아래 기록으로 남는다 */}
+            {stepInquiries.filter((q) => q.decision !== null).map((q) => (
+              <InquiryRecord key={q.id} inquiry={q} />
+            ))}
+
             {/* 현재 진행 단계에만 입력 박스를 인라인 노출한다(spec §9) */}
-            {isNow && <CurrentStepBox step={step} target={target} onChanged={onChanged} />}
+            {isNow && (
+              <CurrentStepBox step={step} target={target} waiting={waiting} onChanged={onChanged} onGoPrep={onGoPrep} />
+            )}
           </li>
         );
       })}
@@ -339,18 +404,44 @@ function StepDot({ status }: { status: BatchStep['status'] }) {
 function CurrentStepBox({
   step,
   target,
+  waiting,
   onChanged,
+  onGoPrep,
 }: {
   step: BatchStep;
   target: RecipeTargetParams;
+  waiting: BatchInquiry | null;
   onChanged: () => void;
+  onGoPrep: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [overriding, setOverriding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { kind, reagent, target_amount, target_unit, note } = step.recipe_steps;
-  const auto = step.measurements.filter((m) => m.source === 'instrument');
-  const badge = auto.find((m) => m.instrument_id && m.captured_at);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 라벨별로 묶고 회차순 정렬. 마지막 행이 현재 값, 앞선 행들은 "이전 시도".
+  const byLabel = new Map<string, StepMeasurement[]>();
+  for (const m of [...step.measurements].sort((a, b) => a.attempt - b.attempt)) {
+    byLabel.set(m.label, [...(byLabel.get(m.label) ?? []), m]);
+  }
+  const groups = [...byLabel.entries()];
+  const anyBad = groups.some(([label, ms]) => outOfSpec(label, ms[ms.length - 1]!.value, target));
+  const locked = waiting !== null || step.status === 'deviation';
 
   return (
     <div className="ml-8 mb-3 mt-1 rounded-card border-[1.5px] border-indicator-teal bg-surface p-4 shadow-ring">
@@ -370,41 +461,98 @@ function CurrentStepBox({
       {note && <p className="mt-1.5 text-caption text-ink-soft">{note}</p>}
 
       <div className="mt-3 flex flex-wrap gap-3">
-        {auto.map((m) => {
-          const bad = outOfSpec(m.label, m.value, target);
+        {groups.map(([label, ms]) => {
+          const cur = ms[ms.length - 1]!;
+          const bad = outOfSpec(label, cur.value, target);
+          const attempts = ms.length;
+          const limitHit = attempts >= REMEASURE_LIMIT;
+          const prev = ms.slice(0, -1);
+          const manual = cur.source === 'manual';
           return (
-            <div key={m.id} className="min-w-32 flex-1">
-              <div className="mb-1 text-caption text-ink-soft">
-                {m.label} <span className="text-indicator-teal">· 계측기 연동</span>
-                {bad && <span className="ml-1 font-semibold text-phenol-pink">· 범위 이탈</span>}
+            <div key={label} className="min-w-44 flex-1">
+              <div className="mb-1 flex items-baseline justify-between gap-2 text-caption text-ink-soft">
+                <span>
+                  {label}{' '}
+                  <span className={manual ? 'text-ink-soft' : 'text-indicator-teal'}>
+                    · {manual ? '수동 입력' : '계측기 연동'}
+                  </span>
+                  {bad && <span className="ml-1 font-semibold text-phenol-pink">· 범위 이탈</span>}
+                </span>
+                {attempts > 1 && (
+                  <span className={`font-mono ${limitHit ? 'font-semibold text-phenol-pink' : ''}`}>
+                    재측량 {attempts}/{REMEASURE_LIMIT}
+                  </span>
+                )}
               </div>
               <output
                 className={`block rounded-control border px-3 py-2 font-mono font-bold ${
                   bad
                     ? 'border-phenol-pink/45 bg-phenol-pink/[.06] text-phenol-pink'
-                    : 'border-indicator-teal/30 bg-indicator-teal/[.06] text-indicator-teal'
+                    : manual
+                      ? 'border-line bg-paper text-ink'
+                      : 'border-indicator-teal/30 bg-indicator-teal/[.06] text-indicator-teal'
                 }`}
               >
-                {m.value} {m.unit}
+                {cur.value} {cur.unit}
               </output>
               {bad && specRange(target) && (
                 <p className="mt-1 font-mono text-caption text-phenol-pink">{specRange(target)}</p>
               )}
+              {manual && cur.override_reason && (
+                <p className="mt-1 text-caption text-ink-soft">사유: {cur.override_reason}</p>
+              )}
+              {/* 덮어쓰지 않는다. 이전 시도는 그대로 보인다 — 스티커를 떼지 않는 원칙 */}
+              {prev.length > 0 && (
+                <p className="mt-1 font-mono text-caption text-ink-dim">
+                  이전 {prev.map((m) => `${m.value}${m.captured_at ? ` (${hm.format(new Date(m.captured_at))})` : ''}`).join(' · ')}
+                </p>
+              )}
+
+              {bad && !locked && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {limitHit ? (
+                    <Button variant="deviation" onClick={onGoPrep} className="text-caption">
+                      <RotateCcw aria-hidden className="size-3.5" /> 0점 체크로 돌아가기
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" disabled={busy} onClick={() => void run(() => remeasure(step.id, label))} className="text-caption">
+                      재측량
+                    </Button>
+                  )}
+                  <Button variant="ghost" disabled={busy} onClick={() => setOverriding(label)} className="text-caption">
+                    수동 입력
+                  </Button>
+                </div>
+              )}
+              {limitHit && bad && (
+                <p className="mt-1 text-caption text-phenol-pink">
+                  {REMEASURE_LIMIT}회 재측량에도 범위 밖입니다. 값이 아니라 기기를 의심하세요.
+                </p>
+              )}
             </div>
           );
         })}
-        {auto.length === 0 && (
+        {groups.length === 0 && (
           <p className="text-caption text-ink-dim">이 단계에는 아직 자동 수집값이 없습니다.</p>
         )}
       </div>
 
-      {badge?.instrument_id && badge.captured_at && (
-        <div className="mt-3">
-          <InstrumentBadge
-            instrumentId={badge.instrument_id}
-            capturedAt={new Date(badge.captured_at)}
-            hint="· 수동 입력하려면 값을 탭하세요"
-          />
+      {(() => {
+        const badge = step.measurements.find((m) => m.source === 'instrument' && m.instrument_id && m.captured_at);
+        return badge?.instrument_id && badge.captured_at ? (
+          <div className="mt-3">
+            <InstrumentBadge instrumentId={badge.instrument_id} capturedAt={new Date(badge.captured_at)} />
+          </div>
+        ) : null;
+      })()}
+
+      {/* 답을 기다리는 동안 공정은 멈춘다 */}
+      {waiting && (
+        <div className="mt-3 rounded-control border border-indicator-amber/50 bg-badge-amber-bg px-3 py-2">
+          <p className="flex items-center gap-1.5 text-caption font-semibold text-badge-amber-fg">
+            <MessageCircleQuestion aria-hidden className="size-4" /> 의뢰자 답변 대기 중 · {hm.format(new Date(waiting.asked_at))}
+          </p>
+          <p className="mt-1 text-body">{waiting.question}</p>
         </div>
       )}
 
@@ -419,50 +567,85 @@ function CurrentStepBox({
           variant="sign"
           touch
           className="flex-[2]"
-          disabled={busy || step.status === 'deviation'}
-          title={step.status === 'deviation' ? '편차를 먼저 조치해야 합니다' : undefined}
-          onClick={() => {
-            setBusy(true);
-            setError(null);
-            completeStep(step.id)
-              .then(onChanged)
-              .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-              .finally(() => setBusy(false));
-          }}
+          disabled={busy || locked || anyBad}
+          title={
+            waiting ? '의뢰자 답변을 기다리는 중입니다'
+              : step.status === 'deviation' ? '편차를 먼저 조치해야 합니다'
+                : anyBad ? '범위 밖 값이 있습니다 — 재측량·수동 입력·편차 등록 중 하나를 하세요'
+                  : undefined
+          }
+          onClick={() => void run(() => completeStep(step.id))}
         >
           {busy ? '처리 중…' : '단계 완료'}
         </Button>
-        <Button
-          variant="deviation"
-          touch
-          className="flex-1"
-          disabled={busy || step.status === 'deviation'}
-          onClick={() => setRegistering(true)}
-        >
+        <Button variant="deviation" touch className="flex-1" disabled={busy || locked} onClick={() => setRegistering(true)}>
           편차 등록
         </Button>
       </div>
+      <button
+        type="button"
+        disabled={busy || waiting !== null}
+        onClick={() => setAsking(true)}
+        className="mt-2 flex min-h-touch w-full cursor-pointer items-center justify-center gap-1.5 rounded-control text-caption font-semibold text-indicator-teal hover:bg-indicator-teal/[.06] disabled:cursor-not-allowed disabled:text-ink-dim"
+      >
+        <MessageCircleQuestion aria-hidden className="size-4" /> 의뢰자에게 확인 요청
+      </button>
 
       <PromptDialog
         open={registering}
         title="편차 등록"
         description="공정 흐름을 벗어나지 않고 이 자리에서 기록합니다. 원인·조치는 편차 탭에서 이어서 입력합니다."
-        fields={[
-          {
-            name: 'description',
-            label: '무엇이 어긋났습니까',
-            placeholder: '예) 측정 pH 8.12 — 허용 7.95–8.05 상한 이탈',
-          },
-        ]}
+        fields={[{ name: 'description', label: '무엇이 어긋났습니까', placeholder: '예) 측정 pH 8.12 — 허용 7.95–8.05 상한 이탈' }]}
         confirmLabel="편차 등록"
         confirmVariant="deviation"
         onCancel={() => setRegistering(false)}
+        onConfirm={async (v) => { await registerDeviation(step.id, v.description ?? ''); setRegistering(false); onChanged(); }}
+      />
+      <PromptDialog
+        open={overriding !== null}
+        title={`${overriding ?? ''} 수동 입력`}
+        description="계측기 값을 사람이 덮어씁니다. 사유가 감사 추적에 남습니다. 이전 자동값은 지워지지 않습니다."
+        fields={[
+          { name: 'value', label: '값', placeholder: '예) 8.01' },
+          { name: 'reason', label: '사유', placeholder: '예) 전극 세척 후 수동 재측정. 자동 전송 지연' },
+        ]}
+        confirmLabel="기록"
+        onCancel={() => setOverriding(null)}
         onConfirm={async (v) => {
-          await registerDeviation(step.id, v.description ?? '');
-          setRegistering(false);
+          const n = Number(v.value);
+          if (!Number.isFinite(n)) throw new Error('숫자를 입력하세요');
+          await overrideMeasurement(step.id, overriding!, n, v.reason ?? '');
+          setOverriding(null);
           onChanged();
         }}
       />
+      <PromptDialog
+        open={asking}
+        title="의뢰자에게 확인 요청"
+        description="보내는 즉시 공정이 멈추고 의뢰자 대시보드에 알림이 갑니다. 답이 올 때까지 이 단계를 완료할 수 없습니다."
+        fields={[{ name: 'question', label: '무엇을 확인받아야 합니까', placeholder: '예) NaCl 재고 부족. R&D팀 로트 NACL-2609 차용해도 될까요?' }]}
+        confirmLabel="확인 요청 보내기"
+        onCancel={() => setAsking(false)}
+        onConfirm={async (v) => { await askClient(step.id, v.question ?? ''); setAsking(false); onChanged(); }}
+      />
+    </div>
+  );
+}
+
+/** 답을 받은 확인 요청 — 단계 아래 기록으로 남는다 */
+function InquiryRecord({ inquiry: q }: { inquiry: BatchInquiry }) {
+  const proceed = q.decision === 'proceed';
+  return (
+    <div className={`ml-8 mb-2 rounded-control border px-3 py-2 text-caption ${proceed ? 'border-line bg-surface' : 'border-phenol-pink/40 bg-phenol-pink/[.04]'}`}>
+      <p className="flex items-center gap-1.5 text-ink-soft">
+        <MessageCircleQuestion aria-hidden className="size-3.5" /> 확인 요청 · {hm.format(new Date(q.asked_at))}
+        <span className={`ml-auto font-semibold ${proceed ? 'text-indicator-green' : 'text-phenol-pink'}`}>
+          의뢰자: {q.decision && INQUIRY_DECISION_LABEL[q.decision]}
+          {q.answered_at && ` · ${hm.format(new Date(q.answered_at))}`}
+        </span>
+      </p>
+      <p className="mt-0.5 text-body">{q.question}</p>
+      {q.answer && <p className="mt-0.5 text-ink-soft">↳ {q.answer}</p>}
     </div>
   );
 }

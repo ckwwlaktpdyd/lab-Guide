@@ -39,12 +39,12 @@ export function ClientDashboard() {
 
   const counts = useMemo(() => {
     const c: Record<ClientStage, number> = { pending: 0, in_progress: 0, review: 0, done: 0 };
-    for (const r of items ?? []) c[clientStage({ status: r.status, result: r.batch?.result ?? null })]++;
+    for (const r of items ?? []) c[clientStage({ status: r.status, result: r.batch?.result ?? null, openInquiry: r.batch?.inquiries.some((q) => q.decision === null) ?? false })]++;
     return c;
   }, [items]);
 
   const actionable = useMemo(
-    () => (items ?? []).filter((r) => needsAction({ status: r.status, result: r.batch?.result ?? null })),
+    () => (items ?? []).filter((r) => needsAction({ status: r.status, result: r.batch?.result ?? null, openInquiry: r.batch?.inquiries.some((q) => q.decision === null) ?? false })),
     [items],
   );
   const pages = Math.max(1, Math.ceil(actionable.length / PAGE));

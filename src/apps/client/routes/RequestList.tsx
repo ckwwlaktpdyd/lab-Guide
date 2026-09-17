@@ -24,7 +24,7 @@ export function RequestList({ stage }: { stage: ClientStage }) {
   const visible = useMemo(
     () =>
       (items ?? []).filter(
-        (r) => clientStage({ status: r.status, result: r.batch?.result ?? null }) === stage,
+        (r) => clientStage({ status: r.status, result: r.batch?.result ?? null, openInquiry: r.batch?.inquiries.some((q) => q.decision === null) ?? false }) === stage,
       ),
     [items, stage],
   );

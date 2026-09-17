@@ -1,5 +1,6 @@
 import { supabase } from './client';
 import { isMock, mockClient, mockConsole } from './mock';
+import type { CalibrationKind, InquiryDecision } from './constants';
 
 /**
  * 쓰기 동작.
@@ -129,5 +130,72 @@ export async function addComment(requestId: string, body: string): Promise<void>
   const { error } = await supabase
     .from('comments')
     .insert({ request_id: requestId, author_id: u.user.id, body });
+  unwrap(error);
+}
+
+// ─── 준비 체크 · 재측량 · 확인 요청 (0007) ───────────────────────
+
+export async function recordCalibration(instrumentId: string, kind: CalibrationKind): Promise<void> {
+  if (isMock) return mockConsole.recordCalibration(instrumentId, kind);
+  const { error } = await supabase.rpc('record_calibration', { p_instrument_id: instrumentId, p_kind: kind });
+  unwrap(error);
+}
+
+export async function confirmSop(batchId: string): Promise<void> {
+  if (isMock) return mockConsole.confirmSop(batchId);
+  const { error } = await supabase.rpc('confirm_sop', { p_batch_id: batchId });
+  unwrap(error);
+}
+
+/** 만료 로트는 화면에서도 막지만 함수도 거부한다. */
+export async function selectBatchReagent(batchId: string, recipeReagentId: string, reagentLotId: string): Promise<void> {
+  if (isMock) return mockConsole.selectBatchReagent(batchId, recipeReagentId, reagentLotId);
+  const { error } = await supabase.rpc('select_batch_reagent', {
+    p_batch_id: batchId, p_recipe_reagent_id: recipeReagentId, p_reagent_lot_id: reagentLotId,
+  });
+  unwrap(error);
+}
+
+export async function confirmLot(batchId: string): Promise<void> {
+  if (isMock) return mockConsole.confirmLot(batchId);
+  const { error } = await supabase.rpc('confirm_lot', { p_batch_id: batchId });
+  unwrap(error);
+}
+
+/** 4단계가 다 끝났는지 서버가 다시 확인한다. */
+export async function startProcess(batchId: string): Promise<void> {
+  if (isMock) return mockConsole.startProcess(batchId);
+  const { error } = await supabase.rpc('start_process', { p_batch_id: batchId });
+  unwrap(error);
+}
+
+/** 재측량 — 덮어쓰지 않고 행을 추가한다. 한 단계 10회까지. */
+export async function remeasure(stepId: string, label: string): Promise<void> {
+  if (isMock) return mockConsole.remeasure(stepId, label);
+  const { error } = await supabase.rpc('remeasure', { p_step_id: stepId, p_label: label });
+  unwrap(error);
+}
+
+export async function overrideMeasurement(stepId: string, label: string, value: number, reason: string): Promise<void> {
+  if (isMock) return mockConsole.overrideMeasurement(stepId, label, value, reason);
+  const { error } = await supabase.rpc('override_measurement', {
+    p_step_id: stepId, p_label: label, p_value: value, p_reason: reason,
+  });
+  unwrap(error);
+}
+
+/** 확인 요청. 보내는 순간 배치가 waiting_client로 멈춘다. */
+export async function askClient(stepId: string, question: string): Promise<void> {
+  if (isMock) return mockConsole.askClient(stepId, question);
+  const { error } = await supabase.rpc('ask_client', { p_step_id: stepId, p_question: question });
+  unwrap(error);
+}
+
+/** 의뢰자 답변. 진행이면 배치가 다시 움직인다. */
+export async function answerInquiry(inquiryId: string, decision: InquiryDecision, answer?: string): Promise<void> {
+  if (isMock) return mockClient.answerInquiry(inquiryId, decision, answer);
+  const { error } = await supabase.rpc('answer_inquiry', {
+    p_inquiry_id: inquiryId, p_decision: decision, ...(answer ? { p_answer: answer } : {}),
+  });
   unwrap(error);
 }

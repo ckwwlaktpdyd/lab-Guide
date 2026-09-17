@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, Lock } from 'lucide-react';
-import { Button, Card, DataValue, GradientStepper, StatusBadge } from '@shared/ui';
+import { ArrowLeft, ChevronDown, ChevronUp, Lock, MessageCircleQuestion } from 'lucide-react';
+import { Button, Card, DataValue, GradientStepper, PromptDialog, StatusBadge } from '@shared/ui';
 import {
   CLIENT_STAGE_LABEL,
   CLIENT_STEPS,
+  INQUIRY_DECISION_LABEL,
   addComment,
+  answerInquiry,
   clientStage,
   fetchRequestDetail,
   stageIndex,
@@ -56,6 +58,7 @@ export function RequestDetail() {
     status: r.status,
     result: r.batch?.result ?? null,
     batchDone: r.batch?.status === 'completed',
+    openInquiry: r.batch?.inquiries.some((q) => q.decision === null) ?? false,
   };
   const stage = clientStage(input);
   const target = r.recipe.target_params;
@@ -107,6 +110,15 @@ export function RequestDetail() {
           </div>
         )}
 
+        {input.openInquiry && (
+          <div className="mt-5 rounded-card border border-indicator-amber/50 bg-badge-amber-bg px-5 py-4">
+            <p className="flex items-center gap-2 text-title text-badge-amber-fg">
+              <MessageCircleQuestion aria-hidden className="size-5" /> 제조자가 확인을 요청했습니다
+            </p>
+            <p className="mt-1 text-caption text-ink-soft">답을 줄 때까지 공정이 멈춰 있습니다. 아래 타임라인에서 답해주세요.</p>
+          </div>
+        )}
+
         {r.status === 'rejected' && (
           <div className="mt-5 rounded-card border border-phenol-pink/35 bg-phenol-pink/[.04] px-5 py-4">
             <p className="text-title text-phenol-pink">반려되었습니다</p>
@@ -117,7 +129,7 @@ export function RequestDetail() {
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.35fr_1fr]">
           {/* 좌측 — 스크롤 축 */}
           <div>
-            <Timeline data={r} />
+            <Timeline data={r} onChanged={reload} />
             <Comments data={r} onPosted={reload} />
           </div>
 
@@ -206,15 +218,18 @@ export function RequestDetail() {
 
 // ─── 타임라인 ──────────────────────────────────────────────────
 
+type Inq = NonNullable<RequestDetailData['batch']>['inquiries'][number];
+
 interface Item {
   key: string;
   title: string;
   sub?: string;
   state: 'first' | 'done' | 'now' | 'dim';
   deviations?: NonNullable<RequestDetailData['batch']>['process_steps'][number]['deviations'];
+  inquiries?: Inq[];
 }
 
-function Timeline({ data: r }: { data: RequestDetailData }) {
+function Timeline({ data: r, onChanged }: { data: RequestDetailData; onChanged: () => void }) {
   const b = r.batch;
   const items: Item[] = [
     { key: 'req', title: '의뢰 접수', sub: mdt.format(new Date(r.created_at)), state: 'first' },
@@ -222,7 +237,7 @@ function Timeline({ data: r }: { data: RequestDetailData }) {
 
   if (r.status === 'rejected') {
     items.push({ key: 'rej', title: '반려', sub: r.rejection_reason ?? undefined, state: 'now' });
-    return <TimelineView items={items} />;
+    return <TimelineView items={items} onChanged={onChanged} />;
   }
 
   if (!b) {
@@ -230,7 +245,7 @@ function Timeline({ data: r }: { data: RequestDetailData }) {
     items.push({ key: 'proc', title: '공정', state: 'dim' });
     items.push({ key: 'rev', title: '검토', state: 'dim' });
     items.push({ key: 'end', title: '완료', state: 'dim' });
-    return <TimelineView items={items} />;
+    return <TimelineView items={items} onChanged={onChanged} />;
   }
 
   items.push({
@@ -255,6 +270,7 @@ function Timeline({ data: r }: { data: RequestDetailData }) {
             : undefined,
       state: st,
       deviations: s.deviations,
+      inquiries: b.inquiries.filter((q) => q.process_step_id === s.id),
     });
   }
 
@@ -291,10 +307,10 @@ function Timeline({ data: r }: { data: RequestDetailData }) {
     state: result?.client_review_status === 'reviewed' ? 'done' : result?.manufacturer_signed_at ? 'now' : 'dim',
   });
 
-  return <TimelineView items={items} />;
+  return <TimelineView items={items} onChanged={onChanged} />;
 }
 
-function TimelineView({ items }: { items: Item[] }) {
+function TimelineView({ items, onChanged }: { items: Item[]; onChanged: () => void }) {
   const lastDone = items.reduce((acc, it, i) => (it.state !== 'dim' ? i : acc), 0);
   const donePct = items.length > 1 ? (lastDone / (items.length - 1)) * 100 : 0;
 
@@ -323,6 +339,7 @@ function TimelineView({ items }: { items: Item[] }) {
             <p className={`text-body ${it.state === 'dim' ? 'text-ink-dim' : 'font-bold'}`}>{it.title}</p>
             {it.sub && <p className="mt-0.5 font-mono text-caption text-ink-soft">{it.sub}</p>}
             {it.deviations && it.deviations.length > 0 && <DeviationDisclosure items={it.deviations} />}
+            {it.inquiries?.map((q) => <InquiryBlock key={q.id} inquiry={q} onChanged={onChanged} />)}
           </li>
         ))}
       </ol>
@@ -376,6 +393,82 @@ function DeviationDisclosure({ items }: { items: NonNullable<Item['deviations']>
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * 제조자 확인 요청 — 해당 단계에 인라인. 편차와 같은 자리다.
+ * 답을 주기 전엔 공정이 멈춰 있다. "멈춰주세요"는 이유가 필수다.
+ */
+function InquiryBlock({ inquiry: q, onChanged }: { inquiry: Inq; onChanged: () => void }) {
+  const [holding, setHolding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const open = q.decision === null;
+
+  const proceed = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await answerInquiry(q.id, 'proceed');
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className={`mt-2 rounded-control border p-3 text-caption ${
+        open ? 'border-indicator-amber/50 bg-badge-amber-bg' : q.decision === 'proceed' ? 'border-line bg-surface' : 'border-phenol-pink/40 bg-phenol-pink/[.04]'
+      }`}
+    >
+      <p className={`flex items-center gap-1.5 font-semibold ${open ? 'text-badge-amber-fg' : 'text-ink-soft'}`}>
+        <MessageCircleQuestion aria-hidden className="size-4" />
+        제조자 확인 요청 · <span className="font-mono font-normal">{mdt.format(new Date(q.asked_at))}</span>
+        {!open && (
+          <span className={`ml-auto ${q.decision === 'proceed' ? 'text-indicator-green' : 'text-phenol-pink'}`}>
+            {INQUIRY_DECISION_LABEL[q.decision!]}{q.answered_at && ` · ${mdt.format(new Date(q.answered_at))}`}
+          </span>
+        )}
+      </p>
+      <p className="mt-1 text-body">{q.question}</p>
+      {q.answer && <p className="mt-1 text-ink-soft">↳ {q.answer}</p>}
+
+      {open && (
+        <>
+          {error && (
+            <p role="alert" className="mt-2 text-phenol-pink">
+              {error}
+            </p>
+          )}
+          <div className="mt-3 flex gap-2">
+            <Button variant="sign" className="flex-[2]" disabled={busy} onClick={() => void proceed()}>
+              {busy ? '전송 중…' : '진행하세요'}
+            </Button>
+            <Button variant="ghost" className="flex-1" disabled={busy} onClick={() => setHolding(true)}>
+              멈춰주세요
+            </Button>
+          </div>
+        </>
+      )}
+
+      <PromptDialog
+        open={holding}
+        title="공정을 멈춰달라고 답합니다"
+        description="이유를 남겨주세요. 제조자가 이를 보고 편차로 전환하거나, 재제조로 이어질 수 있습니다."
+        fields={[{ name: 'answer', label: '이유', placeholder: '예) 다른 부서 로트는 곤란합니다. 동일 로트 입고 후 진행해 주세요' }]}
+        confirmLabel="멈춰주세요"
+        confirmVariant="deviation"
+        onCancel={() => setHolding(false)}
+        onConfirm={async (v) => {
+          await answerInquiry(q.id, 'hold', v.answer ?? '');
+          setHolding(false);
+          onChanged();
+        }}
+      />
     </div>
   );
 }

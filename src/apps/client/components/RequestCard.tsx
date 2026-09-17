@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, MessageCircleQuestion, RotateCcw } from 'lucide-react';
 import { Card, DataValue, GradientStepper, StatusBadge } from '@shared/ui';
 import {
   CLIENT_STAGE_LABEL,
@@ -24,6 +24,7 @@ function toStageInput(r: MyRequest) {
     status: r.status,
     result: r.batch?.result ?? null,
     batchDone: r.batch?.status === 'completed',
+    openInquiry: r.batch?.inquiries.some((q) => q.decision === null) ?? false,
   };
 }
 
@@ -59,6 +60,7 @@ export function RequestCard({ request: r, detailed = false }: RequestCardProps) 
                 <StatusBadge tone="remake">재제조</StatusBadge>
               )}
               {rejected && <StatusBadge tone="deviation">반려</StatusBadge>}
+              {input.openInquiry && <StatusBadge tone="wait">확인 요청</StatusBadge>}
               {openDev > 0 && <StatusBadge tone="deviation">편차 {openDev}</StatusBadge>}
             </div>
             <p className="mt-1 text-caption text-ink-soft">
@@ -81,7 +83,7 @@ export function RequestCard({ request: r, detailed = false }: RequestCardProps) 
                 action ? 'text-indicator-teal' : 'text-ink-soft'
               }`}
             >
-              {rejected ? '재의뢰 필요' : CLIENT_STAGE_LABEL[stage]}
+              {rejected ? '재의뢰 필요' : input.openInquiry ? '답변 필요' : CLIENT_STAGE_LABEL[stage]}
               {action && ' →'}
             </span>
           </div>
@@ -97,6 +99,13 @@ export function RequestCard({ request: r, detailed = false }: RequestCardProps) 
                   <b>반려됨</b> — {r.rejection_reason}
                   <br />
                   <span className="text-caption text-ink-soft">사유를 확인하고 재의뢰해 주세요.</span>
+                </span>
+              </p>
+            ) : input.openInquiry ? (
+              <p className="flex items-start gap-2 text-ink">
+                <MessageCircleQuestion aria-hidden className="mt-1 size-4 shrink-0 text-indicator-amber" />
+                <span>
+                  <b>제조자가 확인을 요청했습니다.</b> 답을 줄 때까지 공정이 멈춰 있습니다.
                 </span>
               </p>
             ) : stage === 'review' ? (

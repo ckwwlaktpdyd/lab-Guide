@@ -80,6 +80,8 @@ from (values
   ('Na2HPO4',      'NAHP-2703', '8 months',  null),
   ('KH2PO4',       'KHP-2701',  '6 months',  null),
   ('Tris base',    'TRIS-2707', '12 months', null),
+  -- TAE·Tris-HCl 준비 체크에서 만료 차단을 보여주기 위한 로트
+  ('Tris base',    'TRIS-2601', '-40 days',  '의도적 만료 — 준비 체크 시나리오'),
   ('빙초산',        'AA-2705',   '10 months', null),
   ('Na2EDTA·2H2O', 'EDTA-2612', '5 months',  '분말'),
   ('HEPES',        'HEP-2704',  '9 months',  null),
@@ -91,7 +93,7 @@ from (values
 insert into buffer_recipes (name, target_params) values
   ('PBS 1X',      '{"ph":7.40,"ph_tolerance":0.05,"volume_ml":500,"conductivity_ms_cm":15.0}'),
   ('Tris-HCl 1M', '{"ph":8.00,"ph_min":7.95,"ph_max":8.05,"volume_ml":1000}'),
-  ('TAE 50X',     '{"ph":8.30,"volume_ml":1000,"conductivity_min":11.0,"conductivity_max":12.5}'),
+  ('TAE 50X',     '{"ph":8.30,"ph_tolerance":0.05,"volume_ml":1000,"conductivity_min":11.0,"conductivity_max":12.5}'),
   ('HEPES 1M',    '{"ph":7.50,"ph_tolerance":0.05,"volume_ml":500}');
 
 -- kind가 null이면 시약을 다루지 않는 단계.
