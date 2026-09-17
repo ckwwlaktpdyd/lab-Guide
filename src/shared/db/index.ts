@@ -6,3 +6,4 @@ export { useSession } from './useSession';
 export * from './queries';
 export * from './mutations';
 export * from './clientStage';
+export { isMock } from './mock';

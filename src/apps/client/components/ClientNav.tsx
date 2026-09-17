@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 const TABS = [
   { to: '/client', label: '대시보드', end: true },
@@ -14,19 +14,19 @@ const TABS = [
 export function ClientNav() {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3 sm:px-6">
-        <span className="text-[17px] font-extrabold tracking-tight">
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6">
+        <span className="shrink-0 whitespace-nowrap text-[17px] font-extrabold tracking-tight">
           LAB GUIDE<span className="text-indicator-teal">.</span>
         </span>
 
-        <nav aria-label="내 의뢰" className="flex gap-1">
+        <nav aria-label="내 의뢰" className="flex gap-0.5 sm:gap-1">
           {TABS.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.end}
               className={({ isActive }) =>
-                `relative rounded-control px-3 py-1.5 text-body transition-colors duration-150 ease-out ${
+                `relative whitespace-nowrap rounded-control px-2 py-1.5 text-body transition-colors duration-150 ease-out sm:px-3 ${
                   isActive ? 'font-bold text-ink' : 'text-ink-soft hover:text-ink'
                 }`
               }
@@ -37,7 +37,7 @@ export function ClientNav() {
                   {isActive && (
                     <span
                       aria-hidden
-                      className="absolute inset-x-3 -bottom-[13px] h-0.5 rounded-sm bg-indicator-teal"
+                      className="absolute inset-x-2 -bottom-[13px] h-0.5 rounded-sm bg-indicator-teal sm:inset-x-3"
                     />
                   )}
                 </>
@@ -46,7 +46,7 @@ export function ClientNav() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <button
             type="button"
             disabled
@@ -60,11 +60,13 @@ export function ClientNav() {
             type="button"
             disabled
             title="새 의뢰 — 후순위"
-            className="cursor-not-allowed rounded-control bg-ink px-4 py-1.5 text-caption font-bold text-white opacity-40"
+            aria-label="새 의뢰"
+            className="flex cursor-not-allowed items-center gap-1 whitespace-nowrap rounded-control bg-ink px-2.5 py-1.5 text-caption font-bold text-white opacity-40 sm:px-4"
           >
-            + 새 의뢰
+            <Plus aria-hidden className="size-4" />
+            <span className="hidden sm:inline">새 의뢰</span>
           </button>
-          <span aria-hidden className="size-8 rounded-full bg-ph-mark" />
+          <span aria-hidden className="hidden size-8 rounded-full bg-ph-mark sm:block" />
         </div>
       </div>
     </header>

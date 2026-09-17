@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { isMock, mockClient, mockConsole } from './mock';
 
 /**
  * 쓰기 동작.
@@ -15,6 +16,7 @@ function unwrap(error: { message: string; hint?: string | null } | null): void {
 
 /** 수락 = 배치 생성. LOT 발번과 공정 단계 펼치기까지 한 번에 일어난다. */
 export async function acceptRequest(requestId: string): Promise<{ lot_number: string }> {
+  if (isMock) return mockConsole.acceptRequest(requestId);
   const { data, error } = await supabase
     .rpc('accept_request', { p_request_id: requestId })
     .returns<{ lot_number: string }>()
@@ -25,6 +27,7 @@ export async function acceptRequest(requestId: string): Promise<{ lot_number: st
 
 /** 반려 사유는 필수이고 의뢰자 코멘트 스레드로 전달된다. */
 export async function rejectRequest(requestId: string, reason: string): Promise<void> {
+  if (isMock) return mockConsole.rejectRequest(requestId, reason);
   const { error } = await supabase.rpc('reject_request', {
     p_request_id: requestId,
     p_reason: reason,
@@ -34,11 +37,13 @@ export async function rejectRequest(requestId: string, reason: string): Promise<
 
 /** 단계 완료 시 배치 상태와 다음 단계도 함께 움직인다. */
 export async function completeStep(stepId: string): Promise<void> {
+  if (isMock) return mockConsole.completeStep(stepId);
   const { error } = await supabase.rpc('complete_step', { p_step_id: stepId });
   unwrap(error);
 }
 
 export async function registerDeviation(stepId: string, description: string): Promise<void> {
+  if (isMock) return mockConsole.registerDeviation(stepId, description);
   const { error } = await supabase.rpc('register_deviation', {
     p_step_id: stepId,
     p_description: description,
@@ -51,6 +56,7 @@ export async function resolveDeviation(
   cause: string,
   action: string,
 ): Promise<void> {
+  if (isMock) return mockConsole.resolveDeviation(deviationId, cause, action);
   const { error } = await supabase.rpc('resolve_deviation', {
     p_deviation_id: deviationId,
     p_cause: cause,
@@ -65,6 +71,7 @@ export async function resolveDeviation(
 
 /** 리뷰 완료 · 서명. "승인"이 아니다. */
 export async function signClientReview(resultId: string): Promise<void> {
+  if (isMock) return mockClient.signClientReview(resultId);
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error('로그인이 필요합니다');
   const { error } = await supabase
@@ -80,6 +87,7 @@ export async function signClientReview(resultId: string): Promise<void> {
 
 /** 보완 요청 — 사유 필수(DB 제약 revision_needs_note). */
 export async function requestRevision(resultId: string, note: string): Promise<void> {
+  if (isMock) return mockClient.requestRevision(resultId, note);
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error('로그인이 필요합니다');
   const { error } = await supabase
@@ -100,6 +108,7 @@ export async function requestRemake(
   reason: string,
   desiredAt: string,
 ): Promise<{ code: string }> {
+  if (isMock) return mockClient.requestRemake(parentRequestId, reason, desiredAt);
   const { data, error } = await supabase
     .rpc('create_request', {
       p_parent_request_id: parentRequestId,
@@ -114,6 +123,7 @@ export async function requestRemake(
 }
 
 export async function addComment(requestId: string, body: string): Promise<void> {
+  if (isMock) return mockClient.addComment(requestId, body);
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error('로그인이 필요합니다');
   const { error } = await supabase

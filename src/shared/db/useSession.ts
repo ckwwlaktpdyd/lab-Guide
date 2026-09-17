@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './client';
+import { isMock, mockAuth } from './mock';
 import type { UserRole } from './constants';
 
 interface SessionState {
@@ -23,6 +24,23 @@ export function useSession(): SessionState {
   });
 
   useEffect(() => {
+    if (isMock) {
+      // 목업 세션 — role만 있으면 된다. Session 형태는 최소한으로만 흉내낸다.
+      const sync = () => {
+        const role = mockAuth.role();
+        setState({
+          session: role
+            ? ({ user: { id: `mock-${role}`, app_metadata: { role } } } as unknown as Session)
+            : null,
+          role,
+          loading: false,
+        });
+      };
+      sync();
+      window.addEventListener('lg-mock-auth', sync);
+      return () => window.removeEventListener('lg-mock-auth', sync);
+    }
+
     let alive = true;
 
     const apply = (session: Session | null) => {

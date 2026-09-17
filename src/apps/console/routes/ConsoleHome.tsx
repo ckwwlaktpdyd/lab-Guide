@@ -8,6 +8,7 @@ import {
   fetchBatches,
   fetchCounts,
   fetchPendingRequests,
+  isMock,
   supabase,
   type BatchListItem,
   type RequestListItem,
@@ -50,7 +51,9 @@ export function ConsoleHome() {
   useEffect(() => {
     void fetchCounts().then(setCounts);
 
-    void supabase.auth.getUser().then(async ({ data }) => {
+    if (isMock) {
+      setOperator({ name: '최제조', org: '제1실습실' });
+    } else void supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
       const { data: p } = await supabase
         .from('profiles')

@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { isMock, mockClient, mockConsole } from './mock';
 import type {
   BatchStatus,
   ClientReviewStatus,
@@ -54,6 +55,7 @@ const REQUEST_FIELDS = `
 
 /** 의뢰함 — 수락 대기 건. 재제조가 위로 오도록 정렬한다. */
 export async function fetchPendingRequests(): Promise<RequestListItem[]> {
+  if (isMock) return mockConsole.fetchPendingRequests();
   const { data, error } = await supabase
     .from('requests')
     .select(REQUEST_FIELDS)
@@ -88,6 +90,7 @@ const BATCH_FIELDS = `
 `;
 
 export async function fetchBatches(): Promise<BatchListItem[]> {
+  if (isMock) return mockConsole.fetchBatches();
   const { data, error } = await supabase
     .from('batches')
     .select(BATCH_FIELDS)
@@ -127,6 +130,7 @@ export interface BatchStep {
 }
 
 export async function fetchBatchSteps(batchId: string): Promise<BatchStep[]> {
+  if (isMock) return mockConsole.fetchBatchSteps(batchId);
   const { data, error } = await supabase
     .from('process_steps')
     .select(
@@ -157,6 +161,7 @@ export interface BatchDeviation {
 }
 
 export async function fetchBatchDeviations(batchId: string): Promise<BatchDeviation[]> {
+  if (isMock) return mockConsole.fetchBatchDeviations(batchId);
   const { data, error } = await supabase
     .from('deviations')
     .select(
@@ -172,6 +177,7 @@ export async function fetchBatchDeviations(batchId: string): Promise<BatchDeviat
 
 /** 대시보드 KPI · 레일 배지. head 요청이라 행을 받지 않는다. */
 export async function fetchCounts() {
+  if (isMock) return mockConsole.fetchCounts();
   const [pending, active, openDeviations] = await Promise.all([
     supabase.from('requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase
@@ -202,6 +208,7 @@ export interface ResultMeasurement {
 export async function fetchResultMeasurementsByLot(
   lotNumber: string,
 ): Promise<ResultMeasurement[]> {
+  if (isMock) return mockConsole.fetchResultMeasurementsByLot(lotNumber);
   const { data, error } = await supabase
     .from('results')
     .select(
@@ -242,6 +249,7 @@ export interface MyRequest {
 }
 
 export async function fetchMyRequests(): Promise<MyRequest[]> {
+  if (isMock) return mockClient.fetchMyRequests();
   const { data, error } = await supabase
     .from('requests')
     .select(
@@ -313,6 +321,7 @@ export interface RequestDetailData {
 }
 
 export async function fetchRequestDetail(id: string): Promise<RequestDetailData> {
+  if (isMock) return mockClient.fetchRequestDetail(id);
   const { data, error } = await supabase
     .from('requests')
     .select(

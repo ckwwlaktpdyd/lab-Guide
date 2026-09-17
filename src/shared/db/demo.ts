@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { isMock, mockAuth } from './mock';
 import type { UserRole } from './constants';
 
 /**
@@ -33,6 +34,11 @@ export type DemoRole = keyof typeof DEMO_ACCOUNTS;
 
 /** 랜딩에서 역할을 고르면 그 계정으로 세션을 연다. */
 export async function signInAsDemo(role: DemoRole): Promise<void> {
+  if (isMock) {
+    mockAuth.signIn(role);
+    window.dispatchEvent(new Event('lg-mock-auth'));
+    return;
+  }
   const { error } = await supabase.auth.signInWithPassword({
     email: DEMO_ACCOUNTS[role].email,
     password: DEMO_PASSWORD,
@@ -53,5 +59,10 @@ export async function signInAsDemo(role: DemoRole): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
+  if (isMock) {
+    mockAuth.signOut();
+    window.dispatchEvent(new Event('lg-mock-auth'));
+    return;
+  }
   await supabase.auth.signOut();
 }
