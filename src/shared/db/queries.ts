@@ -1,6 +1,7 @@
 import { supabase } from './client';
 import type {
   BatchStatus,
+  ClientReviewStatus,
   DeviationStatus,
   MeasurementSource,
   ReagentKind,
@@ -211,4 +212,135 @@ export async function fetchResultMeasurementsByLot(
     .returns<{ measurements: ResultMeasurement[] }[]>();
   if (error) throw error;
   return data[0]?.measurements ?? [];
+}
+
+// ─── 의뢰자 포털 ───────────────────────────────────────────────
+// 접근 범위는 RLS가 거른다. 의뢰자가 호출하면 본인 의뢰만 돌아온다.
+
+export interface MyRequest {
+  id: string;
+  code: string;
+  request_type: RequestType;
+  status: RequestStatus;
+  volume_ml: number;
+  desired_completion_at: string;
+  rejection_reason: string | null;
+  created_at: string;
+  recipe: { name: string; target_params: RecipeTargetParams };
+  /** 1:1 — batches.request_id가 unique라 객체로 온다 */
+  batch: {
+    id: string;
+    lot_number: string;
+    status: BatchStatus;
+    process_steps: { status: StepStatus }[];
+    deviations: { status: DeviationStatus }[];
+    result: {
+      manufacturer_signed_at: string | null;
+      client_review_status: ClientReviewStatus | null;
+    } | null;
+  } | null;
+}
+
+export async function fetchMyRequests(): Promise<MyRequest[]> {
+  const { data, error } = await supabase
+    .from('requests')
+    .select(
+      `
+      id, code, request_type, status, volume_ml, desired_completion_at, rejection_reason, created_at,
+      recipe:recipe_id ( name, target_params ),
+      batch:batches (
+        id, lot_number, status,
+        process_steps ( status ),
+        deviations ( status ),
+        result:results ( manufacturer_signed_at, client_review_status )
+      )
+    `,
+    )
+    .order('created_at', { ascending: false })
+    .returns<MyRequest[]>();
+  if (error) throw error;
+  return data;
+}
+
+export interface RequestDetailData {
+  id: string;
+  code: string;
+  request_type: RequestType;
+  status: RequestStatus;
+  volume_ml: number;
+  desired_completion_at: string;
+  reason: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  recipe: { name: string; target_params: RecipeTargetParams };
+  parent: { code: string } | null;
+  batch: {
+    id: string;
+    lot_number: string;
+    status: BatchStatus;
+    started_at: string | null;
+    ended_at: string | null;
+    created_at: string;
+    process_steps: {
+      id: string;
+      seq: number;
+      status: StepStatus;
+      completed_at: string | null;
+      recipe_steps: { name: string };
+      deviations: {
+        id: string;
+        code: string;
+        description: string;
+        cause: string | null;
+        corrective_action: string | null;
+        status: DeviationStatus;
+        created_at: string;
+        resolved_at: string | null;
+      }[];
+    }[];
+    batch_summaries: { content: string; confirmed_at: string | null } | null;
+    result: {
+      id: string;
+      manufacturer_signed_at: string | null;
+      manufacturer_signed_by: { name: string } | null;
+      client_review_status: ClientReviewStatus | null;
+      client_signed_at: string | null;
+      revision_note: string | null;
+      measurements: ResultMeasurement[];
+    } | null;
+  } | null;
+  comments: { id: string; body: string; created_at: string; author: { name: string; role: string } }[];
+}
+
+export async function fetchRequestDetail(id: string): Promise<RequestDetailData> {
+  const { data, error } = await supabase
+    .from('requests')
+    .select(
+      `
+      id, code, request_type, status, volume_ml, desired_completion_at, reason, rejection_reason, created_at,
+      recipe:recipe_id ( name, target_params ),
+      parent:parent_request_id ( code ),
+      batch:batches (
+        id, lot_number, status, started_at, ended_at, created_at,
+        process_steps (
+          id, seq, status, completed_at,
+          recipe_steps ( name ),
+          deviations ( id, code, description, cause, corrective_action, status, created_at, resolved_at )
+        ),
+        batch_summaries ( content, confirmed_at ),
+        result:results (
+          id, manufacturer_signed_at, client_review_status, client_signed_at, revision_note,
+          manufacturer_signed_by:profiles!results_manufacturer_signed_by_fkey ( name ),
+          measurements ( label, value, unit, instrument_id, captured_at )
+        )
+      ),
+      comments ( id, body, created_at, author:author_id ( name, role ) )
+    `,
+    )
+    .eq('id', id)
+    .order('seq', { referencedTable: 'batches.process_steps' })
+    .order('created_at', { referencedTable: 'comments' })
+    .single<RequestDetailData>();
+  if (error) throw error;
+  return data;
 }

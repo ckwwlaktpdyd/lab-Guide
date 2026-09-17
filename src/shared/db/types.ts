@@ -225,6 +225,17 @@ export type Database = {
         Returns: undefined;
       };
       next_lot_number: { Args: Record<string, never>; Returns: string };
+      create_request: {
+        Args: {
+          p_request_type: RequestType;
+          p_desired_completion_at: string;
+          p_recipe_id?: string;
+          p_volume_ml?: number;
+          p_parent_request_id?: string;
+          p_reason?: string;
+        };
+        Returns: Request;
+      };
     };
     Enums: {
       user_role: UserRole;

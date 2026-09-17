@@ -5,3 +5,4 @@ export { DEMO_ACCOUNTS, signInAsDemo, signOut, type DemoRole } from './demo';
 export { useSession } from './useSession';
 export * from './queries';
 export * from './mutations';
+export * from './clientStage';

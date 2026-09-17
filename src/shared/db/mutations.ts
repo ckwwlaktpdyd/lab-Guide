@@ -58,3 +58,66 @@ export async function resolveDeviation(
   });
   unwrap(error);
 }
+
+// ─── 의뢰자 액션 ───────────────────────────────────────────────
+// RLS가 "제조자 1차 검토 서명 전에는 의뢰자가 리뷰할 수 없다"를 강제한다.
+// 여기서 다시 검사하지 않는다 — 실패하면 DB가 거부한 이유가 그대로 올라온다.
+
+/** 리뷰 완료 · 서명. "승인"이 아니다. */
+export async function signClientReview(resultId: string): Promise<void> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error('로그인이 필요합니다');
+  const { error } = await supabase
+    .from('results')
+    .update({
+      client_review_status: 'reviewed',
+      client_signed_by: u.user.id,
+      client_signed_at: new Date().toISOString(),
+    })
+    .eq('id', resultId);
+  unwrap(error);
+}
+
+/** 보완 요청 — 사유 필수(DB 제약 revision_needs_note). */
+export async function requestRevision(resultId: string, note: string): Promise<void> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error('로그인이 필요합니다');
+  const { error } = await supabase
+    .from('results')
+    .update({
+      client_review_status: 'revision_requested',
+      client_signed_by: u.user.id,
+      client_signed_at: new Date().toISOString(),
+      revision_note: note,
+    })
+    .eq('id', resultId);
+  unwrap(error);
+}
+
+/** 재제조 요청 — 완료된 의뢰에서도 열린다. 원본과 링크되고 사유가 필수다. */
+export async function requestRemake(
+  parentRequestId: string,
+  reason: string,
+  desiredAt: string,
+): Promise<{ code: string }> {
+  const { data, error } = await supabase
+    .rpc('create_request', {
+      p_parent_request_id: parentRequestId,
+      p_request_type: 'remake',
+      p_reason: reason,
+      p_desired_completion_at: desiredAt,
+    })
+    .returns<{ code: string }>()
+    .single();
+  unwrap(error);
+  return data!;
+}
+
+export async function addComment(requestId: string, body: string): Promise<void> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error('로그인이 필요합니다');
+  const { error } = await supabase
+    .from('comments')
+    .insert({ request_id: requestId, author_id: u.user.id, body });
+  unwrap(error);
+}
