@@ -12,7 +12,7 @@
 | 그대로 재사용 | `docs/mockups/design-tokens.html`, `client-portal-hifi.html`, `manufacturer-console-hifi.html` |
 | 내용만 추출 후 폐기 | `docs/archive/*.md` 3개, `design-system/stitch/MASTER.md`, `screen_*.json` 4개, 기존 HTML 9장 (추출분 → `seed-data.md`) |
 | 즉시 폐기 | `index.html`, `patch_p0.js`, `batch_summary.html`, `docs/mockups/*-wireframe.html` 2개 |
-| 분리 보관 | `pptx_project/`, `.claude/skills/pptx` + `skills-lock.json` |
+| ~~분리 보관~~ → 폐기 | `pptx_project/`, `.claude/skills/pptx` + `skills-lock.json` (2026-09-17) |
 
 ---
 
@@ -127,10 +127,14 @@ Google Stitch(figaro) 생성 메타데이터. **파일 자체는 가치 없음**
 
 ---
 
-## 4. 분리 보관
+## 4. 분리 보관 → 폐기 *(2026-09-17 정리)*
 
-- **`pptx_project/`** — 포트폴리오 발표 데크 빌더. 앱과 무관하므로 **pnpm 워크스페이스에 포함하지 말 것** (독립 `package.json`·`package-lock.json`이 루트 lockfile과 충돌). `tools/pptx-deck/`로 이동 권장. 데크 색상이 아직 `EC5B13`/`006666` 구 팔레트라 나중에 갱신 필요.
-- **`.claude/skills/pptx`** — `../../.agents/skills/pptx`를 가리키는 심볼릭 링크인데 `.gitignore`가 `.agents/`를 제외하고 있어 **클론하면 깨진 링크**다. `skills-lock.json`도 이 항목 하나뿐. spec §11은 "유지하되 업데이트"라 했으나 UI 작업과 무관하므로 링크 정리를 권한다.
+처음엔 "앱과 무관하니 분리 보관"으로 뒀으나, 6주 뒤 다시 보니 둘 다 쓰지 않는 자산이었다. 삭제했다.
+전부 `reference/v1-html` 태그에 남아 있다.
+
+- **`pptx_project/`** — 포트폴리오 데크 빌더. 구 Stitch 팔레트(`EC5B13`/`006666`)로 짜여 있어 현재 디자인 시스템과 맞지 않고, 데크는 이 레포 밖에서 별도로 만들고 있다. 앱 코드에 섞여 있을 이유가 없다.
+- **`.claude/skills/pptx`** — `../../.agents/skills/pptx`를 가리키는 심볼릭 링크. `.agents/`가 gitignore라 클론하면 깨진 링크였다.
+- **`skills-lock.json`** — 위 pptx 스킬 항목 하나뿐이라 함께 삭제.
 
 ---
 
