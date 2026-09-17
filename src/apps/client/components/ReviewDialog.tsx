@@ -72,12 +72,14 @@ export function ReviewDialog({ open, data: r, readOnly, onClose, onChanged }: Re
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 sm:items-center sm:p-8">
+    // 모바일은 모달이 아니라 다음 스텝(전체 화면)이다. 액션은 하단 고정 — 구매하기 바 패턴.
+    // sm 이상에서는 가운데 모달.
+    <div className="fixed inset-0 z-50 flex sm:items-center sm:justify-center sm:bg-ink/40 sm:p-8">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${id}-title`}
-        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-card border border-line bg-surface sm:max-w-lg sm:rounded-card"
+        className="flex h-full w-full flex-col bg-surface sm:h-auto sm:max-h-[92dvh] sm:max-w-lg sm:rounded-card sm:border sm:border-line"
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
           <div>
@@ -105,7 +107,7 @@ export function ReviewDialog({ open, data: r, readOnly, onClose, onChanged }: Re
           </button>
         </div>
 
-        <div className="px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
           {/* 측정값 — 콘솔과 같은 출처 배지를 노출한다(투명성) */}
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 font-mono text-body">
             {(result?.measurements ?? []).map((m) => {
@@ -159,28 +161,22 @@ export function ReviewDialog({ open, data: r, readOnly, onClose, onChanged }: Re
             </p>
           )}
 
+        </div>
+
+        {/* 하단 고정 액션 — 스크롤과 무관하게 항상 손 닿는 곳에 */}
+        <div className="border-t border-line px-6 py-4">
           {!readOnly && !done && (
             <>
-              <p className="mt-6 text-caption text-ink-soft">
-                제조 결과를 확인했으며 이상이 없음을 서명합니다.
-              </p>
-              <div className="mt-2">
-                <Button variant="sign" touch className="w-full" disabled={busy} onClick={() => void sign()}>
-                  {busy ? '서명 중…' : '리뷰 완료 · 서명'}
-                </Button>
-              </div>
+              <p className="text-caption text-ink-soft">제조 결과를 확인했으며 이상이 없음을 서명합니다.</p>
+              <Button variant="sign" touch className="mt-2 w-full" disabled={busy} onClick={() => void sign()}>
+                {busy ? '서명 중…' : '리뷰 완료 · 서명'}
+              </Button>
             </>
           )}
 
           {/* 재제조 — 무게가 다른 액션. 구분선 아래. 완료 건에서도 열린다. */}
-          <div className="my-5 h-px bg-line" />
-          <Button
-            variant="deviation"
-            touch
-            className="w-full"
-            disabled={busy}
-            onClick={() => setRemaking(true)}
-          >
+          {!readOnly && !done && <div className="my-4 h-px bg-line" />}
+          <Button variant="deviation" touch className="w-full" disabled={busy} onClick={() => setRemaking(true)}>
             <RotateCcw aria-hidden className="size-4" /> 재제조 요청
           </Button>
           <p className="mt-2 text-caption text-ink-soft">
