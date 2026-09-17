@@ -69,7 +69,7 @@
 - 승계 — `prefers-reduced-motion`, `focus-visible:ring`(≠`focus:`), 시맨틱 HTML, `aria-live="polite"`, `tabular-nums`, 대비 4.5:1, z-index 스케일(10/20/30/50), `<label for>` 필수, onblur 검증, 토스트 3–5초 자동 해제, ease-out/in
 - 조정 필요 3건
   1. "다크모드 금지" → 제조자 콘솔 다크는 Phase 2 후보. "MVP 라이트 전용"으로 완화
-  2. "모바일 375px 가로스크롤 금지" → 의뢰자 포털에만 적용. 콘솔은 1133×744 고정
+  2. "모바일 375px 가로스크롤 금지" → 의뢰자 포털에만 적용. 콘솔은 744×1133 세로 고정
   3. "이모지 아이콘 금지 → Material Symbols" → 원칙(이모지 금지)은 승계하되 아이콘 세트는 **인라인 SVG(Lucide)**로 교체 (§5-7에서 확정)
 
 ### `screen_*.json` (4개)

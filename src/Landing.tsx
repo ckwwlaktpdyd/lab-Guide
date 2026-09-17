@@ -20,7 +20,7 @@ const CHOICES: Choice[] = [
     role: 'manufacturer',
     title: '제조자 콘솔',
     desc: '의뢰를 수락하고 공정을 기록하며 결과를 1차 검토(서명)합니다.',
-    platform: '아이패드 미니 가로 전용',
+    platform: '아이패드 미니 세로 전용',
   },
 ];
 
